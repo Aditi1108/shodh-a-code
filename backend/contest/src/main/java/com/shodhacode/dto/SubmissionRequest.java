@@ -1,5 +1,6 @@
 package com.shodhacode.dto;
 
+import com.shodhacode.entity.ProgrammingLanguage;
 import lombok.Data;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.NotBlank;
@@ -15,5 +16,6 @@ public class SubmissionRequest {
     @NotBlank(message = "Code cannot be empty")
     private String code;
 
-    private String language = "java";
+    @NotNull(message = "Language is required")
+    private ProgrammingLanguage language;
 }
