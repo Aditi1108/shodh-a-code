@@ -1,4 +1,4 @@
-package com.shodhacode.contest;
+package com.shodhacode;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;

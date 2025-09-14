@@ -1,4 +1,4 @@
-package com.shodhacode.contest;
+package com.shodhacode;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
