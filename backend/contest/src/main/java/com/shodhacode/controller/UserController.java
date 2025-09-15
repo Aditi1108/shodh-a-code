@@ -1,9 +1,13 @@
 package com.shodhacode.controller;
 
+import com.shodhacode.dto.UserRequest;
 import com.shodhacode.entity.User;
 import com.shodhacode.repository.UserRepository;
+import com.shodhacode.service.UserService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
@@ -16,6 +20,7 @@ import java.util.List;
 public class UserController {
 
     private final UserRepository userRepository;
+    private final UserService userService;
 
     @GetMapping
     public ResponseEntity<List<User>> getAllUsers() {
@@ -28,5 +33,28 @@ public class UserController {
         return userRepository.findById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+    
+    @PostMapping("/register")
+    public ResponseEntity<?> registerUser(@Valid @RequestBody UserRequest userRequest) {
+        log.info("Registering user: {}", userRequest.getUsername());
+        
+        try {
+            User user = userService.registerUser(userRequest);
+            return ResponseEntity.status(HttpStatus.CREATED).body(user);
+        } catch (IllegalArgumentException e) {
+            log.error("Registration failed: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+    
+    @GetMapping("/check/{username}")
+    public ResponseEntity<?> checkUserExists(@PathVariable String username) {
+        log.info("Checking if user exists: {}", username);
+        
+        return userService.findByUsername(username)
+                .map(user -> ResponseEntity.ok(user))
+                .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body("User not found. Please register first."));
     }
 }
