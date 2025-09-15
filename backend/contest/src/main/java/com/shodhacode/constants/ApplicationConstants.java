@@ -29,6 +29,13 @@ public class ApplicationConstants {
     public static final int MAX_CODE_LENGTH = 10000;
     public static final int MAX_OUTPUT_LENGTH = 5000;
     
+    // Test case result messages
+    public static final String RESULT_PASSED = "Passed";
+    public static final String RESULT_FAILED = "Failed";
+    public static final String RESULT_TIME_LIMIT_EXCEEDED = "Time Limit Exceeded";
+    public static final String RESULT_RUNTIME_ERROR = "Runtime Error";
+    public static final String RESULT_COMPILATION_ERROR = "Compilation Error";
+    
     private ApplicationConstants() {
         // Prevent instantiation
     }

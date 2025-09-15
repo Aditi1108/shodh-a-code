@@ -121,7 +121,7 @@ public class CodeExecutorService {
                 
                 if (!finished) {
                     process.destroyForcibly();
-                    output.append("Test case ").append(i + 1).append(": Time Limit Exceeded\n");
+                    output.append("Test case ").append(i + 1).append(": ").append(ApplicationConstants.RESULT_TIME_LIMIT_EXCEEDED).append("\n");
                     continue;
                 }
                 
@@ -138,7 +138,7 @@ public class CodeExecutorService {
                         submissionRepository.save(submission);
                         return;
                     } else {
-                        output.append("Test case ").append(i + 1).append(": Runtime Error\n");
+                        output.append("Test case ").append(i + 1).append(": ").append(ApplicationConstants.RESULT_RUNTIME_ERROR).append("\n");
                         continue;
                     }
                 }
@@ -149,9 +149,9 @@ public class CodeExecutorService {
                 if (expectedOutput.equals(actualOutput)) {
                     testCasesPassed++;
                     totalScore += pointsPerTestCase;
-                    output.append("Test case ").append(i + 1).append(": Passed\n");
+                    output.append("Test case ").append(i + 1).append(": ").append(ApplicationConstants.RESULT_PASSED).append("\n");
                 } else {
-                    output.append("Test case ").append(i + 1).append(": Failed\n");
+                    output.append("Test case ").append(i + 1).append(": ").append(ApplicationConstants.RESULT_FAILED).append("\n");
                     if (!testCase.getIsHidden()) {
                         output.append("  Expected: ").append(expectedOutput).append("\n");
                         output.append("  Got: ").append(actualOutput).append("\n");
