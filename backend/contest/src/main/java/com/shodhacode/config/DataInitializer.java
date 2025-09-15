@@ -57,10 +57,7 @@ public class DataInitializer {
                     "You can return the answer in any order.");
             problem1.setInputFormat("First line: n (size of array) and target\nSecond line: n space-separated integers");
             problem1.setOutputFormat("Two space-separated indices");
-            problem1.setSampleInput("4 9\n2 7 11 15");
-            problem1.setSampleOutput("0 1");
-            problem1.setTestInput("5 6\n3 2 4 1 5");
-            problem1.setExpectedOutput("1 2");
+            // Sample and test data will be added as TestCase entities below
             problem1.setPoints(100);
             problem1.setTimeLimit(2000);
             problem1.setMemoryLimit(256);
@@ -94,10 +91,7 @@ public class DataInitializer {
                     "For example, 121 is a palindrome while 123 is not.");
             problem2.setInputFormat("A single integer x");
             problem2.setOutputFormat("true or false");
-            problem2.setSampleInput("121");
-            problem2.setSampleOutput("true");
-            problem2.setTestInput("-121");
-            problem2.setExpectedOutput("false");
+            // Sample and test data will be added as TestCase entities below
             problem2.setPoints(100);
             problem2.setTimeLimit(1000);
             problem2.setMemoryLimit(128);
@@ -134,10 +128,7 @@ public class DataInitializer {
                     "Print each element on a new line.");
             problem3.setInputFormat("A single integer n");
             problem3.setOutputFormat("n lines, each containing the appropriate FizzBuzz value");
-            problem3.setSampleInput("3");
-            problem3.setSampleOutput("1\n2\nFizz");
-            problem3.setTestInput("5");
-            problem3.setExpectedOutput("1\n2\nFizz\n4\nBuzz");
+            // Sample and test data will be added as TestCase entities below
             problem3.setPoints(50);
             problem3.setTimeLimit(1000);
             problem3.setMemoryLimit(128);
@@ -145,29 +136,41 @@ public class DataInitializer {
             Problem savedProblem3 = problemRepository.save(problem3);
 
             // Add test cases for Problem 3
+            // Sample test case (visible)
             TestCase tc5 = new TestCase();
-            tc5.setInput("15");
-            tc5.setExpectedOutput("1\n2\nFizz\n4\nBuzz\nFizz\n7\n8\nFizz\nBuzz\n11\nFizz\n13\n14\nFizzBuzz");
+            tc5.setInput("3");
+            tc5.setExpectedOutput("1\n2\nFizz");
             tc5.setIsHidden(false);
             tc5.setTimeLimit(1000);
             tc5.setMemoryLimit(128);
             tc5.setProblem(savedProblem3);
             testCaseRepository.save(tc5);
 
+            // Hidden test case 1
             TestCase tc6 = new TestCase();
-            tc6.setInput("1");
-            tc6.setExpectedOutput("1");
+            tc6.setInput("5");
+            tc6.setExpectedOutput("1\n2\nFizz\n4\nBuzz");
             tc6.setIsHidden(true);
             tc6.setTimeLimit(1000);
             tc6.setMemoryLimit(128);
             tc6.setProblem(savedProblem3);
             testCaseRepository.save(tc6);
 
+            // Hidden test case 2
+            TestCase tc7 = new TestCase();
+            tc7.setInput("15");
+            tc7.setExpectedOutput("1\n2\nFizz\n4\nBuzz\nFizz\n7\n8\nFizz\nBuzz\n11\nFizz\n13\n14\nFizzBuzz");
+            tc7.setIsHidden(true);
+            tc7.setTimeLimit(1000);
+            tc7.setMemoryLimit(128);
+            tc7.setProblem(savedProblem3);
+            testCaseRepository.save(tc7);
+
             log.info("Sample data initialization completed!");
             log.info("Created contest with ID: {}", savedContest.getId());
             log.info("Created {} users", 3);
             log.info("Created {} problems", 3);
-            log.info("Created {} test cases", 6);
+            log.info("Created {} test cases", 8);
         };
     }
 }
