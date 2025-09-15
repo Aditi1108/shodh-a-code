@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  # Backend Spring Boot application
+  backend:
+    build:
+      context: ./backend/contest
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - DOCKER_EXECUTION_ENABLED=true
+      - DOCKER_IMAGE_NAME=shodhacode-executor
+      - EXECUTION_TEMP_DIR=/tmp/shodhacode
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./temp:/tmp/shodhacode
+    depends_on:
+      - executor-build
+    networks:
+      - shodhacode-network
+
+  # Build the executor image
+  executor-build:
+    build:
+      context: ./backend/docker/executor
+      dockerfile: Dockerfile
+    image: shodhacode-executor:latest
+    command: echo "Executor image built successfully"
+
+  # Frontend React/Next.js application
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8080/api
+    depends_on:
+      - backend
+    networks:
+      - shodhacode-network
+
+networks:
+  shodhacode-network:
+    driver: bridge
+
+volumes:
+  temp-data:

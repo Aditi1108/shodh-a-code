@@ -37,6 +37,25 @@ spring:
     init:
       mode: always
 
+# Docker Execution Configuration
+docker:
+  execution:
+    enabled: false
+  image:
+    name: shodhacode-executor
+
+# Execution Configuration
+execution:
+  temp:
+    dir: /tmp/shodhacode
+
+# Polling Configuration (in milliseconds)
+polling:
+  submission:
+    interval: 2500  # 2.5 seconds for submission status polling
+  leaderboard:
+    interval: 20000  # 20 seconds for leaderboard polling
+
 # Logging
 logging:
   level:
