@@ -17,6 +17,9 @@ public class User {
 
     @Column(unique = true, nullable = false)
     private String username;
+    
+    @Column(unique = true)
+    private String email;
 
     private Integer score = 0;
     private Integer problemsSolved = 0;

@@ -26,8 +26,6 @@ public class ApplicationConstants {
     
     // Contest defaults
     public static final int DEFAULT_PROBLEM_POINTS = 100;
-    public static final int MAX_CODE_LENGTH = 10000;
-    public static final int MAX_OUTPUT_LENGTH = 5000;
     
     // Test case result messages
     public static final String RESULT_PASSED = "Passed";
@@ -35,6 +33,17 @@ public class ApplicationConstants {
     public static final String RESULT_TIME_LIMIT_EXCEEDED = "Time Limit Exceeded";
     public static final String RESULT_RUNTIME_ERROR = "Runtime Error";
     public static final String RESULT_COMPILATION_ERROR = "Compilation Error";
+    
+    // Validation limits
+    public static final int MAX_CODE_LENGTH = 10000;
+    public static final int MAX_OUTPUT_LENGTH = 5000;
+    
+    // Validation messages
+    public static final String CODE_TOO_LONG = "Code cannot exceed 10000 characters";
+    public static final String CODE_EMPTY = "Code cannot be empty";
+    public static final String USER_ID_REQUIRED = "User ID is required";
+    public static final String PROBLEM_ID_REQUIRED = "Problem ID is required";
+    public static final String LANGUAGE_REQUIRED = "Language is required";
     
     private ApplicationConstants() {
         // Prevent instantiation

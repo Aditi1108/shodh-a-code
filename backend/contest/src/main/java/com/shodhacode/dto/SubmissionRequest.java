@@ -9,16 +9,16 @@ import jakarta.validation.constraints.Size;
 
 @Data
 public class SubmissionRequest {
-    @NotNull(message = "User ID is required")
+    @NotNull(message = ApplicationConstants.USER_ID_REQUIRED)
     private Long userId;
 
-    @NotNull(message = "Problem ID is required")
+    @NotNull(message = ApplicationConstants.PROBLEM_ID_REQUIRED)
     private Long problemId;
 
-    @NotBlank(message = "Code cannot be empty")
-    @Size(max = ApplicationConstants.MAX_CODE_LENGTH, message = "Code cannot exceed " + ApplicationConstants.MAX_CODE_LENGTH + " characters")
+    @NotBlank(message = ApplicationConstants.CODE_EMPTY)
+    @Size(max = ApplicationConstants.MAX_CODE_LENGTH, message = ApplicationConstants.CODE_TOO_LONG)
     private String code;
 
-    @NotNull(message = "Language is required")
+    @NotNull(message = ApplicationConstants.LANGUAGE_REQUIRED)
     private ProgrammingLanguage language;
 }

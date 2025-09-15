@@ -41,7 +41,7 @@ public class UserService {
         newUser.setUsername(userRequest.getUsername());
         newUser.setEmail(userRequest.getEmail());
         newUser.setScore(0);
-        newUser.setProblemsSloved(0);
+        newUser.setProblemsSolved(0);
         
         User savedUser = userRepository.save(newUser);
         log.info("New user registered: {} with email: {}", savedUser.getUsername(), savedUser.getEmail());

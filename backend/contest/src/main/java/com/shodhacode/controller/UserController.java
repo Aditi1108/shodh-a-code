@@ -53,7 +53,7 @@ public class UserController {
         log.info("Checking if user exists: {}", username);
         
         return userService.findByUsername(username)
-                .map(user -> ResponseEntity.ok(user))
+                .<ResponseEntity<?>>map(user -> ResponseEntity.ok(user))
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body("User not found. Please register first."));
     }
