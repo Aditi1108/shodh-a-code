@@ -1,5 +1,6 @@
 package com.shodhacode.controller;
 
+import com.shodhacode.constants.ApplicationConstants;
 import com.shodhacode.dto.UserRequest;
 import com.shodhacode.entity.User;
 import com.shodhacode.repository.UserRepository;
@@ -13,9 +14,8 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/users")
+@RequestMapping(ApplicationConstants.USERS_PATH)
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 @Slf4j
 public class UserController {
 

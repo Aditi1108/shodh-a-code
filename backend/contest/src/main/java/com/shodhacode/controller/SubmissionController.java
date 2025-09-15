@@ -1,5 +1,6 @@
 package com.shodhacode.controller;
 
+import com.shodhacode.constants.ApplicationConstants;
 import com.shodhacode.dto.SubmissionRequest;
 import com.shodhacode.dto.SubmissionResponse;
 import com.shodhacode.entity.Submission;
@@ -18,9 +19,8 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDateTime;
 
 @RestController
-@RequestMapping("/submissions")
+@RequestMapping(ApplicationConstants.SUBMISSIONS_PATH)
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 @Slf4j
 public class SubmissionController {
 

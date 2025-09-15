@@ -1,5 +1,6 @@
 package com.shodhacode.controller;
 
+import com.shodhacode.constants.ApplicationConstants;
 import com.shodhacode.dto.ContestSummary;
 import com.shodhacode.dto.JoinContestRequest;
 import com.shodhacode.dto.JoinContestResponse;
@@ -21,9 +22,8 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/contests")
+@RequestMapping(ApplicationConstants.CONTESTS_PATH)
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 @Slf4j
 public class ContestController {
 
