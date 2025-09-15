@@ -69,4 +69,29 @@ public class SubmissionController {
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
+    
+    @GetMapping("/user/{userId}/problem/{problemId}/latest")
+    public ResponseEntity<Submission> getLatestSubmission(@PathVariable Long userId, 
+                                                          @PathVariable Long problemId) {
+        log.info("Fetching latest submission for user {} on problem {}", userId, problemId);
+        return submissionRepository.findFirstByUserIdAndProblemIdOrderBySubmittedAtDesc(userId, problemId)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+    
+    @GetMapping("/user/{userId}/problem/{problemId}")
+    public ResponseEntity<List<Submission>> getUserProblemSubmissions(@PathVariable Long userId,
+                                                                      @PathVariable Long problemId) {
+        log.info("Fetching all submissions for user {} on problem {}", userId, problemId);
+        List<Submission> submissions = submissionRepository.findByUserIdAndProblemId(userId, problemId);
+        return ResponseEntity.ok(submissions);
+    }
+    
+    @GetMapping("/user/{userId}/contest/{contestId}")
+    public ResponseEntity<List<Submission>> getUserContestSubmissions(@PathVariable Long userId,
+                                                                      @PathVariable Long contestId) {
+        log.info("Fetching all submissions for user {} in contest {}", userId, contestId);
+        List<Submission> submissions = submissionRepository.findByUserIdAndContestId(userId, contestId);
+        return ResponseEntity.ok(submissions);
+    }
 }

@@ -39,5 +39,8 @@ public class Submission {
     private String errorMessage;
     private LocalDateTime submittedAt = LocalDateTime.now();
     private Long executionTime;
+    private Integer score = 0;
+    private Integer testCasesPassed = 0;
+    private Integer totalTestCases = 0;
 }
 
