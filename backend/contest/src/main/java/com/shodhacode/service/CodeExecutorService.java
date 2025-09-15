@@ -78,25 +78,37 @@ public class CodeExecutorService {
             Files.write(codeFile, submission.getCode().getBytes());
             
             List<TestCase> testCases = problem.getTestCases();
-            if (testCases.isEmpty() && problem.getTestInput() != null) {
-                TestCase defaultTestCase = new TestCase();
-                defaultTestCase.setInput(problem.getTestInput());
-                defaultTestCase.setExpectedOutput(problem.getExpectedOutput());
-                defaultTestCase.setTimeLimit(problem.getTimeLimit() != null ? problem.getTimeLimit() : ApplicationConstants.DEFAULT_TIME_LIMIT);
-                defaultTestCase.setMemoryLimit(problem.getMemoryLimit() != null ? problem.getMemoryLimit() : ApplicationConstants.DEFAULT_MEMORY_LIMIT);
-                testCases = List.of(defaultTestCase);
+            if (testCases == null || testCases.isEmpty()) {
+                log.error("No test cases found for problem {}", problem.getId());
+                submission.setStatus(SubmissionStatus.RUNTIME_ERROR);
+                submission.setErrorMessage("No test cases available for this problem");
+                submission.setScore(0);
+                submission.setTestCasesPassed(0);
+                submission.setTotalTestCases(0);
+                submissionRepository.save(submission);
+                return;
             }
             
+            // Sort test cases: non-hidden (visible) first, then hidden
+            List<TestCase> sortedTestCases = new ArrayList<>();
+            testCases.stream()
+                .filter(tc -> !tc.getIsHidden())
+                .forEach(sortedTestCases::add);
+            testCases.stream()
+                .filter(tc -> tc.getIsHidden())
+                .forEach(sortedTestCases::add);
+            
             int testCasesPassed = 0;
-            int totalTestCases = testCases.size();
+            int totalTestCases = sortedTestCases.size();
             int pointsPerTestCase = problem.getPoints() / totalTestCases;
             int totalScore = 0;
             StringBuilder output = new StringBuilder();
             long totalExecutionTime = 0;
             
-            for (int i = 0; i < testCases.size(); i++) {
-                TestCase testCase = testCases.get(i);
-                log.info("Running test case {} for submission {}", i + 1, submission.getId());
+            for (int i = 0; i < sortedTestCases.size(); i++) {
+                TestCase testCase = sortedTestCases.get(i);
+                String testCaseLabel = testCase.getIsHidden() ? "Hidden test case " : "Sample test case ";
+                log.info("Running {} {} for submission {}", testCaseLabel, i + 1, submission.getId());
                 
                 String dockerCommand = buildDockerCommand(
                     submission.getLanguage(),
@@ -121,7 +133,7 @@ public class CodeExecutorService {
                 
                 if (!finished) {
                     process.destroyForcibly();
-                    output.append("Test case ").append(i + 1).append(": ").append(ApplicationConstants.RESULT_TIME_LIMIT_EXCEEDED).append("\n");
+                    output.append(testCaseLabel).append(i + 1).append(": ").append(ApplicationConstants.RESULT_TIME_LIMIT_EXCEEDED).append("\n");
                     continue;
                 }
                 
@@ -138,7 +150,7 @@ public class CodeExecutorService {
                         submissionRepository.save(submission);
                         return;
                     } else {
-                        output.append("Test case ").append(i + 1).append(": ").append(ApplicationConstants.RESULT_RUNTIME_ERROR).append("\n");
+                        output.append(testCaseLabel).append(i + 1).append(": ").append(ApplicationConstants.RESULT_RUNTIME_ERROR).append("\n");
                         continue;
                     }
                 }
@@ -149,9 +161,9 @@ public class CodeExecutorService {
                 if (expectedOutput.equals(actualOutput)) {
                     testCasesPassed++;
                     totalScore += pointsPerTestCase;
-                    output.append("Test case ").append(i + 1).append(": ").append(ApplicationConstants.RESULT_PASSED).append("\n");
+                    output.append(testCaseLabel).append(i + 1).append(": ").append(ApplicationConstants.RESULT_PASSED).append("\n");
                 } else {
-                    output.append("Test case ").append(i + 1).append(": ").append(ApplicationConstants.RESULT_FAILED).append("\n");
+                    output.append(testCaseLabel).append(i + 1).append(": ").append(ApplicationConstants.RESULT_FAILED).append("\n");
                     if (!testCase.getIsHidden()) {
                         output.append("  Expected: ").append(expectedOutput).append("\n");
                         output.append("  Got: ").append(actualOutput).append("\n");

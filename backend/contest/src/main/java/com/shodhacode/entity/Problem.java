@@ -16,12 +16,21 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Problem {
+    // Primary Key
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // Core problem information
     private String title;
-
+    
+    // Contest relationship
+    @ManyToOne
+    @JoinColumn(name = "contest_id")
+    @JsonBackReference
+    private Contest contest;
+    
+    // Problem statement fields
     @Column(length = 5000)
     private String description;
 
@@ -30,31 +39,16 @@ public class Problem {
 
     @Column(length = 1000)
     private String outputFormat;
-
-    @Column(length = 5000)
-    private String sampleInput;
-
-    @Column(length = 5000)
-    private String sampleOutput;
-
-    @Column(length = 5000)
-    private String testInput;
-
-    @Column(length = 5000)
-    private String expectedOutput;
-
+    
+    // Scoring and constraints
     private Integer points = ApplicationConstants.DEFAULT_PROBLEM_POINTS;
     
     private Integer timeLimit = ApplicationConstants.DEFAULT_TIME_LIMIT;
     
     private Integer memoryLimit = ApplicationConstants.DEFAULT_MEMORY_LIMIT;
 
+    // All test cases (both visible samples and hidden tests)
     @OneToMany(mappedBy = "problem", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     @JsonManagedReference
     private List<TestCase> testCases = new ArrayList<>();
-
-    @ManyToOne
-    @JoinColumn(name = "contest_id")
-    @JsonBackReference
-    private Contest contest;
 }
