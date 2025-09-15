@@ -1,6 +1,6 @@
 package com.shodhacode.service;
 
-
+import com.shodhacode.constants.ApplicationConstants;
 import com.shodhacode.entity.Submission;
 import com.shodhacode.entity.SubmissionStatus;
 import com.shodhacode.repository.SubmissionRepository;
@@ -29,7 +29,7 @@ public class SimpleQueueService {
                     if (submissionId != null) {
                         processSubmission(submissionId);
                     } else {
-                        Thread.sleep(1000);
+                        Thread.sleep(ApplicationConstants.QUEUE_PROCESSING_DELAY);
                     }
                 } catch (Exception e) {
                     log.error("Error processing submission", e);
