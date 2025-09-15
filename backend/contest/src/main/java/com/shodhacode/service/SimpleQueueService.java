@@ -1,7 +1,6 @@
 package com.shodhacode.service;
 
 import com.shodhacode.constants.ApplicationConstants;
-import com.shodhacode.entity.Submission;
 import com.shodhacode.entity.SubmissionStatus;
 import com.shodhacode.repository.SubmissionRepository;
 import jakarta.annotation.PostConstruct;

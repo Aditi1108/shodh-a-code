@@ -6,7 +6,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Update and install essential packages
 RUN apt-get update && apt-get install -y \
-    # C/C++ compilers
+    # C/C++ compilers \
     gcc \
     g++ \
     # Java
