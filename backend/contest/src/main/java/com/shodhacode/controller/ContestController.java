@@ -2,9 +2,12 @@ package com.shodhacode.controller;
 
 import com.shodhacode.constants.ApplicationConstants;
 import com.shodhacode.dto.ContestSummary;
+import com.shodhacode.dto.ContestWithProblems;
 import com.shodhacode.dto.JoinContestRequest;
 import com.shodhacode.dto.JoinContestResponse;
 import com.shodhacode.dto.LeaderboardEntry;
+import com.shodhacode.dto.ProblemSummary;
+import com.shodhacode.dto.ProblemDetail;
 import com.shodhacode.entity.Contest;
 import com.shodhacode.entity.SubmissionStatus;
 import com.shodhacode.entity.User;
@@ -32,10 +35,10 @@ public class ContestController {
     private final UserService userService;
 
     @GetMapping("/{contestId}")
-    public ResponseEntity<Contest> getContest(@PathVariable Long contestId) {
+    public ResponseEntity<ContestWithProblems> getContest(@PathVariable Long contestId) {
         log.info("Fetching contest with ID: {}", contestId);
         return contestRepository.findById(contestId)
-                .map(ResponseEntity::ok)
+                .map(contest -> ResponseEntity.ok(ContestWithProblems.from(contest)))
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -57,9 +60,26 @@ public class ContestController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Contest>> getAllContests() {
+    public ResponseEntity<List<ContestWithProblems>> getAllContests() {
         log.info("Fetching all contests");
-        return ResponseEntity.ok(contestRepository.findAll());
+        List<Contest> contests = contestRepository.findAll();
+        List<ContestWithProblems> contestDtos = contests.stream()
+                .map(ContestWithProblems::from)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(contestDtos);
+    }
+    
+    @GetMapping("/{contestId}/problems")
+    public ResponseEntity<List<ProblemSummary>> getContestProblems(@PathVariable Long contestId) {
+        log.info("Fetching problems for contest: {}", contestId);
+        return contestRepository.findById(contestId)
+                .map(contest -> {
+                    List<ProblemSummary> summaries = contest.getProblems().stream()
+                            .map(ProblemSummary::from)
+                            .collect(Collectors.toList());
+                    return ResponseEntity.ok(summaries);
+                })
+                .orElse(ResponseEntity.notFound().build());
     }
     
     @GetMapping("/summary")

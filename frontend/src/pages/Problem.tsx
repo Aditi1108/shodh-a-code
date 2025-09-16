@@ -1,0 +1,266 @@
+import { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { Clock, Database, ChevronRight, Play } from 'lucide-react';
+import { contestApi, submissionApi } from '../services/api';
+import { useStore } from '../store/useStore';
+import type { Problem as ProblemType, ProgrammingLanguage, SubmissionResponse } from '../types';
+
+export default function Problem({ user }: { user: any }) {
+  const { id } = useParams<{ id: string }>();
+  const [problem, setProblem] = useState<ProblemType | null>(null);
+  const [code, setCode] = useState('');
+  const [languages, setLanguages] = useState<ProgrammingLanguage[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [submissionResult, setSubmissionResult] = useState<SubmissionResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  
+  const { selectedLanguage, setSelectedLanguage } = useStore();
+  
+  useEffect(() => {
+    if (id) {
+      loadProblem(parseInt(id));
+      loadLanguages();
+    }
+  }, [id]);
+  
+  const loadProblem = async (problemId: number) => {
+    try {
+      // First find which contest contains this problem
+      const contests = await contestApi.getAll();
+      let contestFound = false;
+      
+      for (const contest of contests) {
+        if (contest.problems) {
+          const problemExists = contest.problems.find((p: any) => p.id === problemId);
+          if (problemExists) {
+            contestFound = true;
+            break;
+          }
+        }
+      }
+      
+      if (contestFound) {
+        // Now fetch the full problem details from the problems endpoint
+        const response = await fetch(`http://localhost:8080/api/problems/${problemId}`);
+        if (response.ok) {
+          const problemData = await response.json();
+          // Map sampleTestCases to testCases for compatibility
+          if (problemData.sampleTestCases) {
+            problemData.testCases = problemData.sampleTestCases;
+          }
+          setProblem(problemData);
+        } else {
+          setError('Problem not found');
+        }
+      } else {
+        setError('Problem not found in any contest');
+      }
+    } catch (err) {
+      setError('Failed to load problem');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const loadLanguages = async () => {
+    try {
+      const langs = await submissionApi.getSupportedLanguages();
+      setLanguages(langs);
+    } catch (err) {
+      console.error('Failed to load languages:', err);
+    }
+  };
+  
+  const handleSubmit = async () => {
+    if (!user || !problem) {
+      setError('Please login to submit');
+      return;
+    }
+    
+    setSubmitting(true);
+    setSubmissionResult(null);
+    
+    try {
+      const result = await submissionApi.submit({
+        userId: user.id,
+        problemId: problem.id,
+        code,
+        language: selectedLanguage,
+      });
+      setSubmissionResult(result);
+    } catch (err) {
+      setError('Failed to submit code');
+      console.error(err);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+  
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="text-gray-600 dark:text-gray-300">Loading problem...</div>
+      </div>
+    );
+  }
+  
+  if (!problem) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="text-red-600 dark:text-red-400">Problem not found</div>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="grid lg:grid-cols-2 gap-6">
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+          {problem.title}
+        </h1>
+        
+        <div className="flex items-center space-x-4 mb-6 text-sm text-gray-600 dark:text-gray-400">
+          <div className="flex items-center space-x-1">
+            <Clock className="h-4 w-4" />
+            <span>{problem.timeLimit}ms</span>
+          </div>
+          <div className="flex items-center space-x-1">
+            <Database className="h-4 w-4" />
+            <span>{problem.memoryLimit}MB</span>
+          </div>
+          <div>
+            <span className="font-medium">{problem.points} points</span>
+          </div>
+        </div>
+        
+        <div className="prose dark:prose-invert max-w-none">
+          <section className="mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              Description
+            </h3>
+            <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+              {problem.description}
+            </p>
+          </section>
+          
+          <section className="mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              Input Format
+            </h3>
+            <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+              {problem.inputFormat}
+            </p>
+          </section>
+          
+          <section className="mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              Output Format
+            </h3>
+            <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+              {problem.outputFormat}
+            </p>
+          </section>
+          
+          {problem.constraints && (
+            <section className="mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                Constraints
+              </h3>
+              <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                {problem.constraints}
+              </p>
+            </section>
+          )}
+          
+          {problem.testCases && problem.testCases.filter(tc => !tc.isHidden).length > 0 && (
+            <section>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                Sample Test Cases
+              </h3>
+              {problem.testCases
+                .filter(tc => !tc.isHidden)
+                .map((testCase, index) => (
+                  <div key={testCase.id} className="mb-4 bg-gray-50 dark:bg-gray-700 p-4 rounded">
+                    <div className="mb-2">
+                      <strong className="text-gray-900 dark:text-white">Input {index + 1}:</strong>
+                      <pre className="mt-1 text-sm text-gray-700 dark:text-gray-300">
+                        {testCase.input}
+                      </pre>
+                    </div>
+                    <div>
+                      <strong className="text-gray-900 dark:text-white">Output {index + 1}:</strong>
+                      <pre className="mt-1 text-sm text-gray-700 dark:text-gray-300">
+                        {testCase.expectedOutput}
+                      </pre>
+                    </div>
+                  </div>
+                ))}
+            </section>
+          )}
+        </div>
+      </div>
+      
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+            Code Editor
+          </h2>
+          <select
+            value={selectedLanguage}
+            onChange={(e) => setSelectedLanguage(e.target.value as ProgrammingLanguage)}
+            className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+          >
+            {languages.map((lang) => (
+              <option key={lang} value={lang}>
+                {lang}
+              </option>
+            ))}
+          </select>
+        </div>
+        
+        <div className="mb-4">
+          <textarea
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            className="w-full h-96 px-3 py-2 font-mono text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-900 dark:text-gray-100"
+            placeholder="Write your code here..."
+          />
+        </div>
+        
+        {error && (
+          <div className="mb-4 text-red-600 dark:text-red-400 text-sm">
+            {error}
+          </div>
+        )}
+        
+        {submissionResult && (
+          <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+            <p className="text-blue-900 dark:text-blue-300">
+              Submission ID: {submissionResult.submissionId}
+            </p>
+            <p className="text-blue-900 dark:text-blue-300">
+              Status: {submissionResult.status}
+            </p>
+          </div>
+        )}
+        
+        <button
+          onClick={handleSubmit}
+          disabled={submitting || !code.trim() || !user}
+          className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Play className="h-4 w-4" />
+          <span>{submitting ? 'Submitting...' : 'Submit Code'}</span>
+        </button>
+        
+        {!user && (
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+            Please login to submit your solution
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}

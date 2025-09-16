@@ -21,6 +21,7 @@ public class ApplicationConstants {
     public static final String API_PREFIX = "/api";
     public static final String SUBMISSIONS_PATH = "/submissions";
     public static final String CONTESTS_PATH = "/contests";
+    public static final String PROBLEMS_PATH = "/problems";
     public static final String USERS_PATH = "/users";
     public static final String CONFIG_PATH = "/config";
     
