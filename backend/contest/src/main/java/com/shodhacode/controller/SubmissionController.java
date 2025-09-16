@@ -6,6 +6,7 @@ import com.shodhacode.dto.SubmissionResponse;
 import com.shodhacode.entity.Submission;
 import com.shodhacode.entity.Problem;
 import com.shodhacode.entity.User;
+import com.shodhacode.entity.ProgrammingLanguage;
 import com.shodhacode.repository.ProblemRepository;
 import com.shodhacode.repository.SubmissionRepository;
 import com.shodhacode.repository.UserRepository;
@@ -17,7 +18,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping(ApplicationConstants.SUBMISSIONS_PATH)
@@ -94,5 +97,14 @@ public class SubmissionController {
         log.info("Fetching all submissions for user {} in contest {}", userId, contestId);
         List<Submission> submissions = submissionRepository.findByUserIdAndContestId(userId, contestId);
         return ResponseEntity.ok(submissions);
+    }
+    
+    @GetMapping("/languages")
+    public ResponseEntity<List<String>> getSupportedLanguages() {
+        log.info("Fetching supported programming languages");
+        List<String> languages = Arrays.stream(ProgrammingLanguage.values())
+                .map(Enum::name)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(languages);
     }
 }

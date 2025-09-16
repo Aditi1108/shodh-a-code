@@ -40,7 +40,11 @@ public class Problem {
     @Column(length = 1000)
     private String outputFormat;
     
-    // Scoring and constraints
+    // Constraints text (e.g., "1 ≤ n ≤ 100", "Array length ≤ 10^5")
+    @Column(length = 2000)
+    private String constraints;
+    
+    // Scoring and execution limits
     private Integer points = ApplicationConstants.DEFAULT_PROBLEM_POINTS;
     
     private Integer timeLimit = ApplicationConstants.DEFAULT_TIME_LIMIT;
