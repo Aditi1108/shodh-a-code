@@ -39,6 +39,7 @@ public class UserService {
         // Create new user
         User newUser = new User();
         newUser.setUsername(userRequest.getUsername());
+        newUser.setFullName(userRequest.getFullName());
         newUser.setEmail(userRequest.getEmail());
         newUser.setScore(0);
         newUser.setProblemsSolved(0);
