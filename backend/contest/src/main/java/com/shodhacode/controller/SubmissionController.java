@@ -16,10 +16,10 @@ import com.shodhacode.service.SimpleQueueService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import java.time.LocalDateTime;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -52,6 +52,14 @@ public class SubmissionController {
         // Check if user has joined the contest
         Contest contest = problem.getContest();
         if (contest != null) {
+            // Check if contest has ended
+            LocalDateTime now = LocalDateTime.now();
+            if (contest.getEndTime() != null && now.isAfter(contest.getEndTime())) {
+                log.warn("User {} attempting to submit to ended contest {} - rejecting submission", user.getUsername(), contest.getTitle());
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body("Contest has ended. You cannot attempt problems from ended contests.");
+            }
+
             boolean hasJoined = contestParticipantRepository.existsByUserIdAndContestId(user.getId(), contest.getId());
             if (!hasJoined) {
                 log.warn("User {} has not joined contest {} - rejecting submission", user.getUsername(), contest.getTitle());
@@ -97,6 +105,14 @@ public class SubmissionController {
         // Check if user has joined the contest
         Contest contest = problem.getContest();
         if (contest != null) {
+            // Check if contest has ended
+            LocalDateTime now = LocalDateTime.now();
+            if (contest.getEndTime() != null && now.isAfter(contest.getEndTime())) {
+                log.warn("User {} attempting to submit to ended contest {} - rejecting submission", user.getUsername(), contest.getTitle());
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body("Contest has ended. You cannot attempt problems from ended contests.");
+            }
+
             boolean hasJoined = contestParticipantRepository.existsByUserIdAndContestId(user.getId(), contest.getId());
             if (!hasJoined) {
                 log.warn("User {} has not joined contest {} - rejecting submission", user.getUsername(), contest.getTitle());

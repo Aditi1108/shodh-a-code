@@ -477,13 +477,7 @@ public class CodeExecutorService {
             case JAVA: return "Solution.java";
             case PYTHON3: return "solution.py";
             case CPP: return "solution.cpp";
-            case C: return "solution.c";
             case JAVASCRIPT: return "solution.js";
-            case CSHARP: return "solution.cs";
-            case GO: return "solution.go";
-            case RUST: return "solution.rs";
-            case KOTLIN: return "solution.kt";
-            case SWIFT: return "solution.swift";
             default: return "solution.txt";
         }
     }
@@ -496,20 +490,8 @@ public class CodeExecutorService {
                 return "python3 " + fileName;
             case CPP:
                 return "sh -c 'g++ -o solution " + fileName + " && ./solution'";
-            case C:
-                return "sh -c 'gcc -o solution " + fileName + " && ./solution'";
             case JAVASCRIPT:
                 return "node " + fileName;
-            case CSHARP:
-                return "sh -c 'csc " + fileName + " && mono solution.exe'";
-            case GO:
-                return "go run " + fileName;
-            case RUST:
-                return "sh -c 'rustc " + fileName + " && ./solution'";
-            case KOTLIN:
-                return "sh -c 'kotlinc " + fileName + " -include-runtime -d solution.jar && java -jar solution.jar'";
-            case SWIFT:
-                return "swift " + fileName;
             default:
                 throw new UnsupportedOperationException("Language not supported: " + language);
         }

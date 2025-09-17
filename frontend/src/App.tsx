@@ -6,7 +6,6 @@ import Login from './pages/Login';
 import Contest from './pages/Contest';
 import ContestList from './pages/ContestList';
 import Problem from './pages/Problem';
-import ProblemList from './pages/ProblemList';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -55,7 +54,6 @@ function App() {
           <Route index element={<Home user={user} />} />
           <Route path="contests" element={<ContestList />} />
           <Route path="contest/:id" element={<Contest user={user} />} />
-          <Route path="problems" element={<ProblemList />} />
           <Route path="problem/:id" element={<Problem user={user} />} />
         </Route>
         

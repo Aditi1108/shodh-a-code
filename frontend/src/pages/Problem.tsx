@@ -51,47 +51,34 @@ export default function Problem({ user }: { user: any }) {
       if (selectedLanguage === 'JAVA') {
       setCode(`import java.util.Scanner;
 
-/**
- * IMPORTANT:
- * 1. Your main class MUST be named 'Solution' (not Main, not FizzBuzz, etc.)
- * 2. Do NOT change the class name or it will result in compilation error
- * 3. You can create additional methods and classes if needed
- * 4. Input is read from System.in (use Scanner as shown below)
- * 5. Output should be printed to System.out (use System.out.println())
- */
+// Class name must be 'Solution'
 public class Solution {
-
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
 
-        // Read input here
-        // Example: int n = scanner.nextInt();
+        // Example: Read input
+        // int n = scanner.nextInt();
+        // String s = scanner.next();
 
-        // Call your solution method
-        // Example: solve(n);
+        // Your code here
+
+        // Example: Print output
+        // System.out.println(result);
 
         scanner.close();
     }
-
-    // Add your solution method(s) here
-    // Example:
-    // public static void solve(int n) {
-    //     // Your logic here
-    // }
 }`);
         setCodeInitialized(true);
       } else if (selectedLanguage === 'PYTHON3') {
-        setCode(`# Read input using input()
-# Example: n = int(input())
+        setCode(`# Example: Read input
+# n = int(input())  # Read integer
+# s = input()       # Read string
+# arr = list(map(int, input().split()))  # Read array
 
-# Write your solution here
-# Example:
-# def solve(n):
-#     # Your logic here
-#     pass
+# Your code here
 
-# Call your solution
-# solve(n)
+# Example: Print output
+# print(result)
 `);
         setCodeInitialized(true);
       } else if (selectedLanguage === 'CPP') {
@@ -99,41 +86,36 @@ public class Solution {
 using namespace std;
 
 int main() {
-    // Read input
-    // Example: int n; cin >> n;
+    // Example: Read input
+    // int n;
+    // cin >> n;
+    // string s;
+    // cin >> s;
 
-    // Write your solution here
+    // Your code here
 
-    return 0;
-}`);
-        setCodeInitialized(true);
-      } else if (selectedLanguage === 'C') {
-        setCode(`#include <stdio.h>
-
-int main() {
-    // Read input
-    // Example: int n; scanf("%d", &n);
-
-    // Write your solution here
+    // Example: Print output
+    // cout << result << endl;
 
     return 0;
 }`);
         setCodeInitialized(true);
       } else if (selectedLanguage === 'JAVASCRIPT') {
-        setCode(`// For Node.js environment
-// Read input using readline or process.stdin
-
-const readline = require('readline');
+        setCode(`const readline = require('readline');
 const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout
 });
 
 rl.on('line', (line) => {
-    // Process input line
-    // Example: const n = parseInt(line);
+    // Example: Read input
+    // const n = parseInt(line);
+    // const arr = line.split(' ').map(Number);
 
-    // Write your solution here
+    // Your code here
+
+    // Example: Print output
+    // console.log(result);
 
     rl.close();
 });`);

@@ -39,10 +39,6 @@ export default function Layout({ user, setUser }: LayoutProps) {
                 <Trophy className="h-4 w-4" />
                 <span>Contests</span>
               </Link>
-              <Link to="/problems" className="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors">
-                <Code className="h-4 w-4" />
-                <span>Problems</span>
-              </Link>
             </nav>
 
             {/* User Menu */}

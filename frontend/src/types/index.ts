@@ -39,17 +39,11 @@ export interface TestCase {
   memoryLimit?: number;
 }
 
-export type ProgrammingLanguage = 
-  | 'JAVA' 
-  | 'PYTHON3' 
-  | 'CPP' 
-  | 'C' 
-  | 'JAVASCRIPT' 
-  | 'CSHARP' 
-  | 'GO' 
-  | 'RUST' 
-  | 'KOTLIN' 
-  | 'SWIFT';
+export type ProgrammingLanguage =
+  | 'JAVA'
+  | 'PYTHON3'
+  | 'CPP'
+  | 'JAVASCRIPT';
 
 export type SubmissionStatus = 
   | 'PENDING' 
