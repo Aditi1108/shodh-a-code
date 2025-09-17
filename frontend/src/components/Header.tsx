@@ -1,9 +1,9 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Moon, Sun, User, Trophy, FileCode, Sparkles } from 'lucide-react';
+import { User, Trophy, Sparkles } from 'lucide-react';
 import { useStore } from '../store/useStore';
 
 export function Header() {
-  const { user, isDarkMode, toggleDarkMode } = useStore();
+  const { user } = useStore();
   const location = useLocation();
   
   const isActive = (path: string) => {
@@ -40,16 +40,6 @@ export function Header() {
               <Trophy className="h-4 w-4" />
               <span className="font-medium">Contests</span>
             </Link>
-            <button
-              onClick={toggleDarkMode}
-              className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 transition-all backdrop-blur-sm"
-            >
-              {isDarkMode ? (
-                <Sun className="h-5 w-5 text-yellow-300" />
-              ) : (
-                <Moon className="h-5 w-5 text-white" />
-              )}
-            </button>
             
             {user ? (
               <div className="flex items-center space-x-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-lg">
