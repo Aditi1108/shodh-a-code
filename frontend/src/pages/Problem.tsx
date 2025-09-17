@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { Clock, Database, ChevronRight, Play } from 'lucide-react';
+import { Clock, Database, ChevronRight, Play, Send, CheckCircle, XCircle, AlertCircle, Loader } from 'lucide-react';
 import { contestApi, submissionApi } from '../services/api';
 import { useStore } from '../store/useStore';
 import type { Problem as ProblemType, ProgrammingLanguage, SubmissionResponse } from '../types';
@@ -11,9 +11,11 @@ export default function Problem({ user }: { user: any }) {
   const [code, setCode] = useState('');
   const [languages, setLanguages] = useState<ProgrammingLanguage[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  const [submissionResult, setSubmissionResult] = useState<SubmissionResponse | null>(null);
+  const [submissionResult, setSubmissionResult] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [pollingStatus, setPollingStatus] = useState(false);
+  const pollingIntervalRef = useRef<NodeJS.Timer | null>(null);
   
   const { selectedLanguage, setSelectedLanguage } = useStore();
   
@@ -22,6 +24,13 @@ export default function Problem({ user }: { user: any }) {
       loadProblem(parseInt(id));
       loadLanguages();
     }
+    
+    // Cleanup polling on component unmount
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+    };
   }, [id]);
   
   const loadProblem = async (problemId: number) => {
@@ -73,7 +82,17 @@ export default function Problem({ user }: { user: any }) {
     }
   };
   
-  const handleSubmit = async () => {
+  const handleRunCode = async () => {
+    // Run code only against sample test cases
+    await handleSubmit(true);
+  };
+  
+  const handleSubmitCode = async () => {
+    // Submit code against all test cases
+    await handleSubmit(false);
+  };
+  
+  const handleSubmit = async (runOnly: boolean = false) => {
     if (!user || !problem) {
       setError('Please login to submit');
       return;
@@ -81,6 +100,7 @@ export default function Problem({ user }: { user: any }) {
     
     setSubmitting(true);
     setSubmissionResult(null);
+    setError('');
     
     try {
       const result = await submissionApi.submit({
@@ -89,12 +109,98 @@ export default function Problem({ user }: { user: any }) {
         code,
         language: selectedLanguage,
       });
-      setSubmissionResult(result);
+      
+      // Start polling for submission status
+      startPollingSubmissionStatus(result.submissionId);
     } catch (err) {
       setError('Failed to submit code');
       console.error(err);
-    } finally {
       setSubmitting(false);
+    }
+  };
+  
+  const startPollingSubmissionStatus = (submissionId: string) => {
+    setPollingStatus(true);
+    
+    // Clear any existing polling interval
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+    }
+    
+    // Initial status fetch
+    fetchSubmissionStatus(submissionId);
+    
+    // Poll every 2 seconds
+    pollingIntervalRef.current = setInterval(() => {
+      fetchSubmissionStatus(submissionId);
+    }, 2000);
+  };
+  
+  const fetchSubmissionStatus = async (submissionId: string) => {
+    try {
+      const response = await fetch(`http://localhost:8080/api/submissions/${submissionId}`);
+      if (!response.ok) throw new Error('Failed to fetch submission status');
+      
+      const submission = await response.json();
+      setSubmissionResult(submission);
+      
+      // Check if we've reached a definitive state (not PENDING or RUNNING)
+      const definitiveStates = ['ACCEPTED', 'WRONG_ANSWER', 'TIME_LIMIT_EXCEEDED', 
+                               'MEMORY_LIMIT_EXCEEDED', 'RUNTIME_ERROR', 
+                               'COMPILATION_ERROR', 'PARTIALLY_ACCEPTED'];
+      
+      if (definitiveStates.includes(submission.status)) {
+        // Stop polling
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+        setPollingStatus(false);
+        setSubmitting(false);
+      }
+    } catch (err) {
+      console.error('Error fetching submission status:', err);
+      // Continue polling even if there's an error
+    }
+  };
+  
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'ACCEPTED':
+        return <CheckCircle className="h-5 w-5 text-green-500" />;
+      case 'WRONG_ANSWER':
+      case 'RUNTIME_ERROR':
+      case 'COMPILATION_ERROR':
+      case 'TIME_LIMIT_EXCEEDED':
+      case 'MEMORY_LIMIT_EXCEEDED':
+        return <XCircle className="h-5 w-5 text-red-500" />;
+      case 'PARTIALLY_ACCEPTED':
+        return <AlertCircle className="h-5 w-5 text-yellow-500" />;
+      case 'PENDING':
+      case 'RUNNING':
+        return <Loader className="h-5 w-5 text-blue-500 animate-spin" />;
+      default:
+        return null;
+    }
+  };
+  
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'ACCEPTED':
+        return 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800';
+      case 'WRONG_ANSWER':
+      case 'RUNTIME_ERROR':
+      case 'COMPILATION_ERROR':
+      case 'TIME_LIMIT_EXCEEDED':
+      case 'MEMORY_LIMIT_EXCEEDED':
+        return 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800';
+      case 'PARTIALLY_ACCEPTED':
+        return 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800';
+      case 'PENDING':
+      case 'RUNNING':
+        return 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800';
+      default:
+        return 'bg-gray-50 dark:bg-gray-900/20 border-gray-200 dark:border-gray-800';
     }
   };
   
@@ -236,24 +342,75 @@ export default function Problem({ user }: { user: any }) {
         )}
         
         {submissionResult && (
-          <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-            <p className="text-blue-900 dark:text-blue-300">
-              Submission ID: {submissionResult.submissionId}
-            </p>
-            <p className="text-blue-900 dark:text-blue-300">
-              Status: {submissionResult.status}
+          <div className={`mb-4 p-4 rounded-lg border ${getStatusColor(submissionResult.status)}`}>
+            <div className="flex items-center space-x-2 mb-2">
+              {getStatusIcon(submissionResult.status)}
+              <span className="font-semibold text-gray-900 dark:text-white">
+                {submissionResult.status.replace(/_/g, ' ')}
+              </span>
+            </div>
+            
+            {submissionResult.score !== undefined && submissionResult.score !== null && (
+              <p className="text-sm text-gray-700 dark:text-gray-300">
+                Score: {submissionResult.score}/{problem.points}
+              </p>
+            )}
+            
+            {submissionResult.testCasesPassed !== undefined && submissionResult.totalTestCases !== undefined && (
+              <p className="text-sm text-gray-700 dark:text-gray-300">
+                Test Cases: {submissionResult.testCasesPassed}/{submissionResult.totalTestCases} passed
+              </p>
+            )}
+            
+            {submissionResult.executionTime && (
+              <p className="text-sm text-gray-700 dark:text-gray-300">
+                Execution Time: {submissionResult.executionTime}ms
+              </p>
+            )}
+            
+            {submissionResult.errorMessage && (
+              <div className="mt-2 p-2 bg-red-100 dark:bg-red-900/30 rounded">
+                <p className="text-sm text-red-800 dark:text-red-200 font-mono">
+                  {submissionResult.errorMessage}
+                </p>
+              </div>
+            )}
+            
+            {submissionResult.output && (
+              <div className="mt-2 p-2 bg-gray-100 dark:bg-gray-800 rounded">
+                <p className="text-sm text-gray-800 dark:text-gray-200 font-mono whitespace-pre-wrap">
+                  {submissionResult.output}
+                </p>
+              </div>
+            )}
+            
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+              Submission ID: {submissionResult.id || submissionResult.submissionId}
             </p>
           </div>
         )}
         
-        <button
-          onClick={handleSubmit}
-          disabled={submitting || !code.trim() || !user}
-          className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <Play className="h-4 w-4" />
-          <span>{submitting ? 'Submitting...' : 'Submit Code'}</span>
-        </button>
+        <div className="flex space-x-3">
+          <button
+            onClick={handleRunCode}
+            disabled={submitting || !code.trim() || !user}
+            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Test against sample test cases only"
+          >
+            <Play className="h-4 w-4" />
+            <span>{submitting ? 'Running...' : 'Run Code'}</span>
+          </button>
+          
+          <button
+            onClick={handleSubmitCode}
+            disabled={submitting || !code.trim() || !user}
+            className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Submit for evaluation against all test cases"
+          >
+            <Send className="h-4 w-4" />
+            <span>{submitting ? 'Submitting...' : 'Submit Code'}</span>
+          </button>
+        </div>
         
         {!user && (
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">

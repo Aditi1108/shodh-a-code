@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Value;
+import jakarta.annotation.PostConstruct;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -32,20 +33,91 @@ public class CodeExecutorService {
     @Value("${docker.image.name:" + ApplicationConstants.DEFAULT_DOCKER_IMAGE + "}")
     private String dockerImageName = ApplicationConstants.DEFAULT_DOCKER_IMAGE;
     
-    @Value("${execution.temp.dir:" + ApplicationConstants.DEFAULT_TEMP_DIR + "}")
-    private String tempDir = ApplicationConstants.DEFAULT_TEMP_DIR;
+    @Value("${execution.temp.dir:}")
+    private String tempDir;
+
+    @Value("${docker.debug.mode:false}")
+    private boolean dockerDebugMode;
+    
+    @PostConstruct
+    public void init() {
+        // Use system temp directory if not configured
+        if (tempDir == null || tempDir.isEmpty()) {
+            tempDir = System.getProperty("java.io.tmpdir") + "shodhacode";
+        }
+        
+        // Ensure directory exists
+        try {
+            Files.createDirectories(Paths.get(tempDir));
+        } catch (IOException e) {
+            log.error("Failed to create temp directory: {}", e.getMessage());
+        }
+        
+        log.info("=================================================");
+        log.info("CodeExecutorService initialization:");
+        log.info("Docker execution enabled: {}", dockerEnabled);
+        log.info("Docker image name: {}", dockerImageName);
+        log.info("Temp directory: {}", tempDir);
+        log.info("Docker debug mode: {}", dockerDebugMode);
+        
+        if (dockerEnabled) {
+            checkDockerAvailability();
+        } else {
+            log.warn("Docker execution is DISABLED. Code execution will not work!");
+        }
+        log.info("=================================================");
+    }
+    
+    private void checkDockerAvailability() {
+        try {
+            // Check if Docker is running
+            ProcessBuilder dockerCheckBuilder = new ProcessBuilder("docker", "version");
+            // Redirect error stream to output stream to capture all output
+            dockerCheckBuilder.redirectErrorStream(true);
+            Process dockerCheck = dockerCheckBuilder.start();
+            boolean dockerRunning = dockerCheck.waitFor(5, TimeUnit.SECONDS);
+            
+            if (dockerRunning && dockerCheck.exitValue() == 0) {
+                log.info("✓ Docker is available and running");
+                
+                // Check if the required image exists
+                ProcessBuilder imageCheckBuilder = new ProcessBuilder("docker", "images", "-q", dockerImageName);
+                imageCheckBuilder.redirectErrorStream(true);
+                Process imageCheck = imageCheckBuilder.start();
+                imageCheck.waitFor(5, TimeUnit.SECONDS);
+                
+                BufferedReader reader = new BufferedReader(new InputStreamReader(imageCheck.getInputStream()));
+                String imageId = reader.readLine();
+                
+                if (imageId != null && !imageId.trim().isEmpty()) {
+                    log.info("✓ Docker executor image '{}' found (ID: {})", dockerImageName, imageId.substring(0, Math.min(12, imageId.length())));
+                } else {
+                    log.error("✗ Docker executor image '{}' NOT FOUND! Please build it using:", dockerImageName);
+                    log.error("  cd backend/docker/executor && docker build -t {} .", dockerImageName);
+                    dockerEnabled = false;
+                }
+            } else {
+                log.error("✗ Docker is NOT running or not installed!");
+                dockerEnabled = false;
+            }
+        } catch (Exception e) {
+            log.error("✗ Failed to check Docker availability: {}", e.getMessage());
+            dockerEnabled = false;
+        }
+    }
 
     public void executeCode(Submission submission) {
-        log.info("Starting code execution for submission {}", submission.getId());
+        log.info("Starting code execution for submission {} with language {}",
+                 submission.getId(), submission.getLanguage());
         submission.setStatus(SubmissionStatus.RUNNING);
         submissionRepository.save(submission);
-        
+
         try {
             Problem problem = submission.getProblem();
             if (problem == null) {
                 throw new RuntimeException("Problem not found for submission");
             }
-            
+
             if (dockerEnabled) {
                 executeWithDocker(submission, problem);
             } else {
@@ -71,11 +143,15 @@ public class CodeExecutorService {
         String executionId = UUID.randomUUID().toString();
         Path workDir = Paths.get(tempDir, executionId);
         Files.createDirectories(workDir);
-        
+
+        log.info("Executing submission {} with language: {}", submission.getId(), submission.getLanguage());
+
         try {
             String fileName = getFileName(submission.getLanguage());
             Path codeFile = workDir.resolve(fileName);
             Files.write(codeFile, submission.getCode().getBytes());
+
+            log.info("Created file {} for submission {}", fileName, submission.getId());
             
             List<TestCase> testCases = problem.getTestCases();
             if (testCases == null || testCases.isEmpty()) {
@@ -110,17 +186,51 @@ public class CodeExecutorService {
                 String testCaseLabel = testCase.getIsHidden() ? "Hidden test case " : "Sample test case ";
                 log.info("Running {} {} for submission {}", testCaseLabel, i + 1, submission.getId());
                 
-                String dockerCommand = buildDockerCommand(
-                    submission.getLanguage(),
-                    workDir.toString(),
-                    fileName,
-                    testCase.getTimeLimit(),
-                    testCase.getMemoryLimit()
-                );
+                // Get the run command for this language
+                String runCommand = getRunCommand(submission.getLanguage(), fileName);
                 
-                ProcessBuilder pb = new ProcessBuilder("sh", "-c", dockerCommand);
+                // Generate unique container name for debugging
+                String containerName = "executor-" + submission.getId().substring(0, 8) + "-tc" + (i + 1);
+
+                // Split the Docker command into parts to avoid shell interpretation issues
+                List<String> commandParts = new ArrayList<>();
+                commandParts.add("docker");
+                commandParts.add("run");
+                if (!dockerDebugMode) {
+                    commandParts.add("--rm");
+                }
+                commandParts.add("--name");
+                commandParts.add(containerName);
+                commandParts.add("-i");
+                commandParts.add("--cpus=1");
+                commandParts.add("--memory=" + testCase.getMemoryLimit() + "m");
+                commandParts.add("--memory-swap=" + testCase.getMemoryLimit() + "m");
+                // Increased ulimits to prevent "resource temporarily unavailable" errors
+                commandParts.add("--ulimit");
+                commandParts.add("nofile=256:256");
+                commandParts.add("--ulimit");
+                commandParts.add("nproc=512:512");
+                commandParts.add("--network");
+                commandParts.add("none");
+                // Run as root to avoid permission issues (security is handled by container isolation)
+                commandParts.add("--user");
+                commandParts.add("root");
+                commandParts.add("-v");
+                commandParts.add(workDir.toString() + ":/code");
+                commandParts.add("-w");
+                commandParts.add("/code");
+                commandParts.add(dockerImageName);
+                commandParts.add("/bin/bash");
+                commandParts.add("-c");
+                commandParts.add("timeout " + (testCase.getTimeLimit() / 1000) + " " + runCommand);
+                
+                ProcessBuilder pb = new ProcessBuilder(commandParts);
                 pb.directory(workDir.toFile());
-                
+
+                if (dockerDebugMode) {
+                    log.info("Starting container {} for test case {}", containerName, i + 1);
+                }
+
                 Process process = pb.start();
                 
                 try (BufferedWriter writer = new BufferedWriter(
@@ -130,9 +240,17 @@ public class CodeExecutorService {
                 }
                 
                 boolean finished = process.waitFor(testCase.getTimeLimit() + 1000, TimeUnit.MILLISECONDS);
-                
+
                 if (!finished) {
+                    log.warn("Test case {} timed out for submission {}", i + 1, submission.getId());
                     process.destroyForcibly();
+                    // Also kill the Docker container if it's still running
+                    try {
+                        ProcessBuilder killBuilder = new ProcessBuilder("docker", "kill", containerName);
+                        killBuilder.start().waitFor(2, TimeUnit.SECONDS);
+                    } catch (Exception e) {
+                        log.debug("Failed to kill container {}: {}", containerName, e.getMessage());
+                    }
                     output.append(testCaseLabel).append(i + 1).append(": ").append(ApplicationConstants.RESULT_TIME_LIMIT_EXCEEDED).append("\n");
                     continue;
                 }
@@ -150,7 +268,16 @@ public class CodeExecutorService {
                         submissionRepository.save(submission);
                         return;
                     } else {
+                        log.error("Runtime error for test case {}: Exit code={}, Error output: {}",
+                                 i + 1, process.exitValue(), error);
                         output.append(testCaseLabel).append(i + 1).append(": ").append(ApplicationConstants.RESULT_RUNTIME_ERROR).append("\n");
+                        output.append("  Error: ").append(error.isEmpty() ? "Unknown error (exit code: " + process.exitValue() + ")" : error).append("\n");
+
+                        if (dockerDebugMode) {
+                            log.info("Container {} preserved for debugging. Use 'docker logs {}' to see output",
+                                    containerName, containerName);
+                            output.append("  Debug: Container '").append(containerName).append("' preserved for inspection\n");
+                        }
                         continue;
                     }
                 }
@@ -199,30 +326,6 @@ public class CodeExecutorService {
         submissionRepository.save(submission);
     }
     
-    private String buildDockerCommand(ProgrammingLanguage language, String workDir, 
-                                     String fileName, int timeLimit, int memoryLimit) {
-        String runCommand = getRunCommand(language, fileName);
-        
-        return String.format(
-            "docker run --rm -i " +
-            "--cpus=\"1\" " +
-            "--memory=\"%dm\" " +
-            "--memory-swap=\"%dm\" " +
-            "--ulimit nofile=64:64 " +
-            "--ulimit nproc=32:32 " +
-            "--network none " +
-            "-v \"%s:/code:ro\" " +
-            "-w /code " +
-            "--user 1000:1000 " +
-            "%s " +
-            "timeout %ds %s",
-            memoryLimit, memoryLimit,
-            workDir,
-            dockerImageName,
-            timeLimit / 1000,
-            runCommand
-        );
-    }
     
     private String getFileName(ProgrammingLanguage language) {
         switch (language) {

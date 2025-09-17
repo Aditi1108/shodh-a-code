@@ -20,7 +20,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -46,15 +49,41 @@ public class ContestController {
     public ResponseEntity<List<LeaderboardEntry>> getLeaderboard(@PathVariable Long contestId) {
         log.info("Fetching leaderboard for contest: {}", contestId);
 
-        List<Object[]> results = submissionRepository.findLeaderboard(contestId);
-
-        List<LeaderboardEntry> leaderboard = results.stream()
-                .map(row -> new LeaderboardEntry(
-                        (String) row[0],  // username
-                        ((Long) row[1]).intValue(),  // problems solved (with score > 0)
-                        row[2] != null ? ((Long) row[2]).intValue() : 0  // total score
-                ))
-                .collect(Collectors.toList());
+        // Get contest with participants
+        Optional<Contest> contestOpt = contestRepository.findById(contestId);
+        if (contestOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        
+        Contest contest = contestOpt.get();
+        
+        // Get submission results
+        List<Object[]> submissionResults = submissionRepository.findLeaderboard(contestId);
+        Map<String, LeaderboardEntry> leaderboardMap = new HashMap<>();
+        
+        // Add submission results to map
+        for (Object[] row : submissionResults) {
+            String username = (String) row[0];
+            int problemsSolved = ((Long) row[1]).intValue();
+            int totalScore = row[2] != null ? ((Long) row[2]).intValue() : 0;
+            leaderboardMap.put(username, new LeaderboardEntry(username, problemsSolved, totalScore));
+        }
+        
+        // Add all participants (including those with 0 score)
+        for (User participant : contest.getParticipants()) {
+            if (!leaderboardMap.containsKey(participant.getUsername())) {
+                leaderboardMap.put(participant.getUsername(), 
+                    new LeaderboardEntry(participant.getUsername(), 0, 0));
+            }
+        }
+        
+        // Sort by score descending, then problems solved descending
+        List<LeaderboardEntry> leaderboard = new ArrayList<>(leaderboardMap.values());
+        leaderboard.sort((a, b) -> {
+            int scoreCompare = Integer.compare(b.getScore(), a.getScore());
+            if (scoreCompare != 0) return scoreCompare;
+            return Integer.compare(b.getProblemsSolved(), a.getProblemsSolved());
+        });
 
         return ResponseEntity.ok(leaderboard);
     }
@@ -89,8 +118,9 @@ public class ContestController {
         List<Contest> contests = contestRepository.findAll();
         List<ContestSummary> summaries = contests.stream()
                 .map(contest -> {
-                    Long userCount = submissionRepository.countUniqueUsersByContestId(contest.getId());
-                    return ContestSummary.from(contest, userCount != null ? userCount : 0L);
+                    // Use actual participant count from the many-to-many relationship
+                    Long userCount = (long) contest.getParticipants().size();
+                    return ContestSummary.from(contest, userCount);
                 })
                 .collect(Collectors.toList());
         
@@ -123,6 +153,13 @@ public class ContestController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body("Contest is not active");
         }
+        
+        // Add user to contest participants
+        user.getParticipatingContests().add(contest);
+        contest.getParticipants().add(user);
+        
+        // Save the relationship
+        userService.save(user);
         
         JoinContestResponse response = JoinContestResponse.from(user, contest);
         log.info("User {} successfully joined contest {}", user.getUsername(), contest.getTitle());

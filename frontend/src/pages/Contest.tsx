@@ -153,7 +153,7 @@ export default function Contest({ user }: { user: any }) {
                 {joining ? 'Joining...' : 'Join Contest'}
               </button>
             )}
-            {hasJoined && (
+            {hasJoined && status.color === 'green' && (
               <span className="px-4 py-2 bg-blue-100 text-blue-800 font-medium rounded-lg">
                 ✓ Joined
               </span>

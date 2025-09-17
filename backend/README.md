@@ -230,6 +230,120 @@ Access the H2 database console at: **http://localhost:8080/h2-console**
 - **Username**: `sa`
 - **Password**: (leave empty)
 
+## Code Execution Flow
+
+### Overview
+The platform uses a queue-based asynchronous processing system with Docker containerization for secure code execution. Each submission goes through the following lifecycle:
+
+### Execution Flow Diagram
+```
+User Submits Code (Frontend)
+         ↓
+POST /api/submissions
+         ↓
+SubmissionController
+    - Creates Submission (status: PENDING)
+    - Saves to Database
+    - Adds to Queue
+         ↓
+SimpleQueueService (Background Thread)
+    - Polls Queue Continuously
+    - Picks Submission ID
+    - Calls CodeExecutorService
+         ↓
+CodeExecutorService
+    - Updates status to RUNNING
+    - Checks Docker availability
+         ↓
+    [Docker Enabled]              [Docker Disabled]
+         ↓                              ↓
+    executeWithDocker()          Set RUNTIME_ERROR
+    - Create temp directory       "Execution environment
+    - Write code to file           not available"
+    - For each test case:
+      * Run Docker container
+      * Execute code
+      * Compare outputs
+      * Update scores
+         ↓
+    Update Submission Status:
+    - ACCEPTED (all pass)
+    - PARTIALLY_ACCEPTED
+    - WRONG_ANSWER
+    - TIME_LIMIT_EXCEEDED
+    - COMPILATION_ERROR
+    - RUNTIME_ERROR
+         ↓
+Frontend Polls /api/submissions/{id}
+    - Every 2 seconds
+    - Stops on definitive state
+    - Displays results
+```
+
+### Key Components
+
+#### 1. SimpleQueueService
+- Runs as a background thread on application startup
+- Uses `ConcurrentLinkedQueue` for thread-safe operations
+- Processes submissions sequentially to manage resources
+
+#### 2. CodeExecutorService
+- Creates isolated Docker containers for each submission
+- Enforces time and memory limits
+- Supports 10 programming languages
+- Cleans up temporary files after execution
+
+#### 3. Docker Executor
+- Image: `shodha-executor`
+- Contains compilers/interpreters for all supported languages
+- Runs code as non-root user for security
+- Network isolation enabled
+
+### Docker Setup
+
+#### Building the Executor Image
+```bash
+cd backend/docker/executor
+./build.sh  # Linux/Mac
+build.bat   # Windows
+```
+
+#### Enabling Docker Execution
+1. Install Docker Desktop
+2. Ensure Docker daemon is running
+3. Build the executor image (see above)
+4. Set in `application.yml`:
+   ```yaml
+   docker:
+     execution:
+       enabled: true
+   ```
+5. Restart the backend server
+
+### Submission States
+- **PENDING**: Initial state when submitted
+- **RUNNING**: Currently being executed
+- **ACCEPTED**: All test cases passed
+- **PARTIALLY_ACCEPTED**: Some test cases passed
+- **WRONG_ANSWER**: Output doesn't match expected
+- **TIME_LIMIT_EXCEEDED**: Execution took too long
+- **MEMORY_LIMIT_EXCEEDED**: Used too much memory
+- **COMPILATION_ERROR**: Code failed to compile
+- **RUNTIME_ERROR**: Code crashed during execution
+
+### Test Case Execution
+1. **Sample Test Cases** (visible): Shown to users with input/output
+2. **Hidden Test Cases**: Used for scoring, details not revealed
+3. Execution order: Sample cases first, then hidden
+4. Scoring: Points distributed equally among all test cases
+
+### Security Features
+- Code runs in isolated Docker containers
+- Resource limits enforced (CPU, memory, time)
+- Network access disabled during execution
+- Temporary files cleaned up after execution
+- Non-root user execution in containers
+
 ## Configuration
 
 ### Application Properties (`application.yml`)

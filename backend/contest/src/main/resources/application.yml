@@ -46,14 +46,17 @@ spring:
 # Docker Execution Configuration
 docker:
   execution:
-    enabled: false
+    enabled: true
+  debug:
+    mode: true  # Set to true to preserve containers for debugging (use 'docker logs <container-name>' to see output)
   image:
     name: shodhacode-executor
 
 # Execution Configuration
-execution:
-  temp:
-    dir: /tmp/shodhacode
+# Temp directory will be automatically determined based on OS
+# execution:
+#   temp:
+#     dir: /tmp/shodhacode
 
 # Polling Configuration (in milliseconds)
 polling:

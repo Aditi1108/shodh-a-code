@@ -1,15 +1,18 @@
 package com.shodhacode.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "users")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@EqualsAndHashCode(exclude = "participatingContests")
+@ToString(exclude = "participatingContests")
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -26,4 +29,12 @@ public class User {
 
     private Integer score = 0;
     private Integer problemsSolved = 0;
+    
+    @ManyToMany
+    @JoinTable(
+        name = "contest_participants",
+        joinColumns = @JoinColumn(name = "user_id"),
+        inverseJoinColumns = @JoinColumn(name = "contest_id")
+    )
+    private Set<Contest> participatingContests = new HashSet<>();
 }
