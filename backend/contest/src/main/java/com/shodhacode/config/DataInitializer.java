@@ -40,13 +40,13 @@ public class DataInitializer {
             user3.setEmail("charlie@example.com");
             userRepository.save(user3);
 
-            // ============= OLD CONTEST (ENDED) =============
+            // ============= SECOND ACTIVE CONTEST =============
             Contest oldContest = new Contest();
-            oldContest.setTitle("Past Programming Challenge");
-            oldContest.setDescription("A previous contest that has already ended - great for practice!");
-            oldContest.setStartTime(LocalDateTime.now().minusDays(7));
-            oldContest.setEndTime(LocalDateTime.now().minusDays(5));
-            oldContest.setIsActive(false);
+            oldContest.setTitle("Daily Challenge #1");
+            oldContest.setDescription("Practice your problem-solving skills with these fundamental challenges!");
+            oldContest.setStartTime(LocalDateTime.now().minusHours(2));
+            oldContest.setEndTime(LocalDateTime.now().plusDays(1));
+            oldContest.setIsActive(true);
             Contest savedOldContest = contestRepository.save(oldContest);
 
             // Old Contest - Problem 1: Reverse String

@@ -315,9 +315,12 @@ for i in range(n):
 6. Check leaderboard for updated rankings
 
 ### Pre-populated Data
-- **2 Contests**: Active and Upcoming
+- **2 Active Contests**:
+  - Weekly Challenge #1 (3 problems)
+  - Daily Challenge #1 (3 problems)
 - **6 Problems**: Various difficulty levels
 - **Test Cases**: Both sample and hidden for each problem
+- **3 Sample Users**: alice, bob, charlie
 
 ## 🚦 Development Decisions & Trade-offs
 
