@@ -64,7 +64,6 @@ export default function Contest({ user }: { user: any }) {
   useEffect(() => {
     if (id) {
       loadContestData(parseInt(id));
-      loadLeaderboard(parseInt(id));
       if (user) {
         checkJoinStatus(parseInt(id), user.id);
       } else {
@@ -78,7 +77,22 @@ export default function Contest({ user }: { user: any }) {
       loadUserSubmissions(parseInt(id), user.id);
     }
   }, [activeTab, id, user, hasJoined]);
-  
+
+  // Load and poll leaderboard when on leaderboard tab
+  useEffect(() => {
+    if (activeTab === 'leaderboard' && id && contest) {
+      // Load leaderboard immediately when switching to tab
+      loadLeaderboard(parseInt(id));
+
+      // Poll every 15 seconds while on leaderboard tab
+      const intervalId = setInterval(() => {
+        loadLeaderboard(parseInt(id));
+      }, 15000); // 15 seconds
+
+      return () => clearInterval(intervalId);
+    }
+  }, [activeTab, id, contest]);
+
   
   const loadContestData = async (contestId: number) => {
     try {
