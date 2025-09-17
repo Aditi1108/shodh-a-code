@@ -1,23 +1,35 @@
 import { useEffect, useState, useRef } from 'react';
-import { useParams } from 'react-router-dom';
-import { Clock, Database, ChevronRight, Play, Send, CheckCircle, XCircle, AlertCircle, Loader } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Clock, Database, ChevronRight, Play, Send, CheckCircle, XCircle, AlertCircle, Loader, Trophy, ArrowLeft, FileText } from 'lucide-react';
 import { contestApi, submissionApi } from '../services/api';
 import { useStore } from '../store/useStore';
-import type { Problem as ProblemType, ProgrammingLanguage, SubmissionResponse } from '../types';
+import Leaderboard from '../components/Leaderboard';
+import type { Problem as ProblemType, ProgrammingLanguage, SubmissionResponse, Contest } from '../types';
 
 export default function Problem({ user }: { user: any }) {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [problem, setProblem] = useState<ProblemType | null>(null);
+  const [contest, setContest] = useState<Contest | null>(null);
   const [code, setCode] = useState('');
+  const [codeInitialized, setCodeInitialized] = useState(false);
   const [languages, setLanguages] = useState<ProgrammingLanguage[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [submissionResult, setSubmissionResult] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [pollingStatus, setPollingStatus] = useState(false);
+  const [activeTab, setActiveTab] = useState<'problem' | 'leaderboard'>('problem');
   const pollingIntervalRef = useRef<NodeJS.Timer | null>(null);
-  
+
   const { selectedLanguage, setSelectedLanguage } = useStore();
+
+  // Reset code when language changes
+  const handleLanguageChange = (language: ProgrammingLanguage) => {
+    setSelectedLanguage(language);
+    setCodeInitialized(false);
+    setCode(''); // Clear current code to trigger template
+  };
   
   useEffect(() => {
     if (id) {
@@ -32,18 +44,116 @@ export default function Problem({ user }: { user: any }) {
       }
     };
   }, [id]);
-  
+
+  // Set default template based on selected language
+  useEffect(() => {
+    if (!codeInitialized) {
+      if (selectedLanguage === 'JAVA') {
+      setCode(`import java.util.Scanner;
+
+/**
+ * IMPORTANT:
+ * 1. Your main class MUST be named 'Solution' (not Main, not FizzBuzz, etc.)
+ * 2. Do NOT change the class name or it will result in compilation error
+ * 3. You can create additional methods and classes if needed
+ * 4. Input is read from System.in (use Scanner as shown below)
+ * 5. Output should be printed to System.out (use System.out.println())
+ */
+public class Solution {
+
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+
+        // Read input here
+        // Example: int n = scanner.nextInt();
+
+        // Call your solution method
+        // Example: solve(n);
+
+        scanner.close();
+    }
+
+    // Add your solution method(s) here
+    // Example:
+    // public static void solve(int n) {
+    //     // Your logic here
+    // }
+}`);
+        setCodeInitialized(true);
+      } else if (selectedLanguage === 'PYTHON3') {
+        setCode(`# Read input using input()
+# Example: n = int(input())
+
+# Write your solution here
+# Example:
+# def solve(n):
+#     # Your logic here
+#     pass
+
+# Call your solution
+# solve(n)
+`);
+        setCodeInitialized(true);
+      } else if (selectedLanguage === 'CPP') {
+        setCode(`#include <iostream>
+using namespace std;
+
+int main() {
+    // Read input
+    // Example: int n; cin >> n;
+
+    // Write your solution here
+
+    return 0;
+}`);
+        setCodeInitialized(true);
+      } else if (selectedLanguage === 'C') {
+        setCode(`#include <stdio.h>
+
+int main() {
+    // Read input
+    // Example: int n; scanf("%d", &n);
+
+    // Write your solution here
+
+    return 0;
+}`);
+        setCodeInitialized(true);
+      } else if (selectedLanguage === 'JAVASCRIPT') {
+        setCode(`// For Node.js environment
+// Read input using readline or process.stdin
+
+const readline = require('readline');
+const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+});
+
+rl.on('line', (line) => {
+    // Process input line
+    // Example: const n = parseInt(line);
+
+    // Write your solution here
+
+    rl.close();
+});`);
+        setCodeInitialized(true);
+      }
+    }
+  }, [selectedLanguage, codeInitialized]);
+
   const loadProblem = async (problemId: number) => {
     try {
       // First find which contest contains this problem
       const contests = await contestApi.getAll();
       let contestFound = false;
       
-      for (const contest of contests) {
-        if (contest.problems) {
-          const problemExists = contest.problems.find((p: any) => p.id === problemId);
+      for (const contestItem of contests) {
+        if (contestItem.problems) {
+          const problemExists = contestItem.problems.find((p: any) => p.id === problemId);
           if (problemExists) {
             contestFound = true;
+            setContest(contestItem);
             break;
           }
         }
@@ -83,25 +193,43 @@ export default function Problem({ user }: { user: any }) {
   };
   
   const handleRunCode = async () => {
-    // Run code only against sample test cases
-    await handleSubmit(true);
+    if (!user || !problem) {
+      setError('Please login to run code');
+      return;
+    }
+
+    setSubmitting(true);
+    setSubmissionResult(null);
+    setError('');
+
+    try {
+      const result = await submissionApi.run({
+        userId: user.id,
+        problemId: problem.id,
+        code,
+        language: selectedLanguage,
+      });
+
+      // Start polling for submission status
+      startPollingSubmissionStatus(result.submissionId);
+    } catch (err: any) {
+      const errorMessage = err.response?.data || err.message || 'Failed to run code';
+      setError(errorMessage);
+      console.error(err);
+      setSubmitting(false);
+    }
   };
-  
+
   const handleSubmitCode = async () => {
-    // Submit code against all test cases
-    await handleSubmit(false);
-  };
-  
-  const handleSubmit = async (runOnly: boolean = false) => {
     if (!user || !problem) {
       setError('Please login to submit');
       return;
     }
-    
+
     setSubmitting(true);
     setSubmissionResult(null);
     setError('');
-    
+
     try {
       const result = await submissionApi.submit({
         userId: user.id,
@@ -112,8 +240,9 @@ export default function Problem({ user }: { user: any }) {
       
       // Start polling for submission status
       startPollingSubmissionStatus(result.submissionId);
-    } catch (err) {
-      setError('Failed to submit code');
+    } catch (err: any) {
+      const errorMessage = err.response?.data || err.message || 'Failed to submit code';
+      setError(errorMessage);
       console.error(err);
       setSubmitting(false);
     }
@@ -221,11 +350,60 @@ export default function Problem({ user }: { user: any }) {
   }
   
   return (
-    <div className="grid lg:grid-cols-2 gap-6">
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-          {problem.title}
-        </h1>
+    <div className="space-y-6">
+      {/* Navigation Header */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => navigate(`/contest/${contest?.id}`)}
+              className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <span>Back to Contest</span>
+            </button>
+            {contest && (
+              <div className="text-gray-500 dark:text-gray-400">
+                <ChevronRight className="h-4 w-4 inline" />
+                <span className="ml-2 font-medium">{contest.title}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={() => setActiveTab('problem')}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+                activeTab === 'problem'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+              }`}
+            >
+              <FileText className="h-4 w-4" />
+              Problem
+            </button>
+            <button
+              onClick={() => setActiveTab('leaderboard')}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+                activeTab === 'leaderboard'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+              }`}
+            >
+              <Trophy className="h-4 w-4" />
+              Leaderboard
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Content based on active tab */}
+      {activeTab === 'problem' ? (
+        <div className="grid lg:grid-cols-2 gap-6">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+              {problem.title}
+            </h1>
         
         <div className="flex items-center space-x-4 mb-6 text-sm text-gray-600 dark:text-gray-400">
           <div className="flex items-center space-x-1">
@@ -315,7 +493,7 @@ export default function Problem({ user }: { user: any }) {
           </h2>
           <select
             value={selectedLanguage}
-            onChange={(e) => setSelectedLanguage(e.target.value as ProgrammingLanguage)}
+            onChange={(e) => handleLanguageChange(e.target.value as ProgrammingLanguage)}
             className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
           >
             {languages.map((lang) => (
@@ -350,7 +528,7 @@ export default function Problem({ user }: { user: any }) {
               </span>
             </div>
             
-            {submissionResult.score !== undefined && submissionResult.score !== null && (
+            {submissionResult.score !== undefined && submissionResult.score !== null && submissionResult.score > 0 && (
               <p className="text-sm text-gray-700 dark:text-gray-300">
                 Score: {submissionResult.score}/{problem.points}
               </p>
@@ -418,6 +596,11 @@ export default function Problem({ user }: { user: any }) {
           </p>
         )}
       </div>
+    </div>
+      ) : (
+        /* Leaderboard Tab */
+        contest && <Leaderboard contestId={contest.id} />
+      )}
     </div>
   );
 }

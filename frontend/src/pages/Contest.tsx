@@ -1,46 +1,83 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { 
-  Trophy, 
+import {
+  Trophy,
   Clock,
   Code2,
   Medal,
   Calendar,
   ChevronRight,
   Users,
-  Target
+  Target,
+  FileText,
+  CheckCircle,
+  XCircle,
+  AlertCircle
 } from 'lucide-react';
 import { contestApi } from '../services/api';
 import { useStore } from '../store/useStore';
 import type { Contest as ContestType } from '../types';
 
 interface LeaderboardEntry {
+  rank: number;
+  userId: number;
   username: string;
+  fullName: string;
+  score: number;
   problemsSolved: number;
-  totalScore: number;
+  lastSubmission?: string;
+}
+
+interface UserSubmission {
+  id: string;
+  problemId: number;
+  problemTitle: string;
+  problemPoints: number;
+  language: string;
+  status: string;
+  score: number;
+  testCasesPassed: number;
+  totalTestCases: number;
+  submittedAt: string;
+  code: string;
+  isTestRun: boolean;
+  executionTime?: number;
 }
 
 export default function Contest({ user }: { user: any }) {
   const { id } = useParams<{ id: string }>();
   const { isContestJoined, joinContest } = useStore();
   
-  // State
+  // Component state
   const [contest, setContest] = useState<ContestType | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState<'problems' | 'leaderboard'>('problems');
+  const [activeTab, setActiveTab] = useState<'problems' | 'leaderboard' | 'submissions'>('problems');
   const [joining, setJoining] = useState(false);
-  
-  // Get join status from store
-  const hasJoined = contest ? isContestJoined(contest.id) : false;
+  const [hasJoined, setHasJoined] = useState(false);
+  const [checkingJoinStatus, setCheckingJoinStatus] = useState(true);
+  const [userSubmissions, setUserSubmissions] = useState<UserSubmission[]>([]);
+  const [loadingSubmissions, setLoadingSubmissions] = useState(false);
+  const [selectedSubmission, setSelectedSubmission] = useState<UserSubmission | null>(null);
   
   useEffect(() => {
     if (id) {
       loadContestData(parseInt(id));
       loadLeaderboard(parseInt(id));
+      if (user) {
+        checkJoinStatus(parseInt(id), user.id);
+      } else {
+        setCheckingJoinStatus(false);
+      }
     }
-  }, [id]);
+  }, [id, user]);
+
+  useEffect(() => {
+    if (activeTab === 'submissions' && id && user && hasJoined) {
+      loadUserSubmissions(parseInt(id), user.id);
+    }
+  }, [activeTab, id, user, hasJoined]);
   
   
   const loadContestData = async (contestId: number) => {
@@ -63,31 +100,67 @@ export default function Contest({ user }: { user: any }) {
       console.error('Error loading leaderboard:', err);
     }
   };
+
+  const loadUserSubmissions = async (contestId: number, userId: number) => {
+    setLoadingSubmissions(true);
+    try {
+      const response = await fetch(`http://localhost:8080/api/submissions/user/${userId}/contest/${contestId}`);
+      if (response.ok) {
+        const submissions = await response.json();
+        // Filter out test runs and enrich with problem titles and points
+        const finalSubmissions = submissions
+          .filter((s: any) => !s.isTestRun)
+          .map((s: any) => {
+            const problem = contest?.problems?.find(p => p.id === s.problem.id);
+            return {
+              ...s,
+              problemTitle: problem?.title || 'Unknown Problem',
+              problemPoints: problem?.points || 100
+            };
+          });
+        setUserSubmissions(finalSubmissions);
+      }
+    } catch (err) {
+      console.error('Error loading user submissions:', err);
+    } finally {
+      setLoadingSubmissions(false);
+    }
+  };
+
+  const checkJoinStatus = async (contestId: number, userId: number) => {
+    try {
+      const response = await fetch(`http://localhost:8080/api/contests/${contestId}/participants/${userId}`);
+      if (response.ok) {
+        const joined = await response.json();
+        setHasJoined(joined);
+      }
+    } catch (err) {
+      console.error('Error checking join status:', err);
+    } finally {
+      setCheckingJoinStatus(false);
+    }
+  };
   
   const handleJoinContest = async () => {
     if (!user || !contest) {
       setError('Please login to join the contest');
       return;
     }
-    
+
     setJoining(true);
     setError('');
-    
+
     try {
       await contestApi.joinContest(user.username, contest.id);
-      
+
       // Update the store to mark this contest as joined
       joinContest(contest.id);
-      
-      // Add user to leaderboard with 0 score if not already there
-      const userInLeaderboard = leaderboard.find(entry => entry.username === user.username);
-      if (!userInLeaderboard) {
-        setLeaderboard([...leaderboard, {
-          username: user.username,
-          problemsSolved: 0,
-          totalScore: 0
-        }]);
-      }
+
+      // Update join status
+      setHasJoined(true);
+
+      // Refresh leaderboard after joining
+      loadLeaderboard(contest.id);
     } catch (err: any) {
       console.error('Join contest error:', err);
       setError(err.response?.data || err.message || 'Failed to join contest');
@@ -214,6 +287,19 @@ export default function Contest({ user }: { user: any }) {
               <Trophy className="inline h-4 w-4 mr-2" />
               Leaderboard
             </button>
+            {user && hasJoined && (
+              <button
+                onClick={() => setActiveTab('submissions')}
+                className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'submissions'
+                    ? 'border-indigo-500 text-indigo-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <FileText className="inline h-4 w-4 mr-2" />
+                Your Submissions
+              </button>
+            )}
           </div>
         </div>
         
@@ -246,7 +332,7 @@ export default function Contest({ user }: { user: any }) {
                 <p className="text-gray-500 text-center py-8">No problems available for this contest.</p>
               )}
             </div>
-          ) : (
+          ) : activeTab === 'leaderboard' ? (
             <div className="space-y-4">
               {/* Leaderboard */}
               <div className="overflow-x-auto">
@@ -295,7 +381,7 @@ export default function Contest({ user }: { user: any }) {
                             <span className="text-gray-600">{entry.problemsSolved}</span>
                           </td>
                           <td className="px-4 py-3">
-                            <span className="font-semibold text-gray-900">{entry.totalScore}</span>
+                            <span className="font-semibold text-gray-900">{entry.score}</span>
                           </td>
                         </tr>
                       ))
@@ -310,7 +396,164 @@ export default function Contest({ user }: { user: any }) {
                 </table>
               </div>
             </div>
-          )}
+          ) : activeTab === 'submissions' ? (
+            <div className="space-y-4">
+              {loadingSubmissions ? (
+                <div className="text-center py-8">
+                  <div className="animate-pulse">Loading submissions...</div>
+                </div>
+              ) : userSubmissions.length > 0 ? (
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-gray-200">
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Problem
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Language
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Score
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Test Cases
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Submitted
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {userSubmissions.map((submission) => (
+                          <tr key={submission.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3">
+                              <span className="font-medium text-gray-900">{submission.problemTitle}</span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded">
+                                {submission.language}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center">
+                                {submission.status === 'ACCEPTED' ? (
+                                  <CheckCircle className="h-4 w-4 text-green-500 mr-1" />
+                                ) : submission.status === 'WRONG_ANSWER' ? (
+                                  <XCircle className="h-4 w-4 text-red-500 mr-1" />
+                                ) : (
+                                  <AlertCircle className="h-4 w-4 text-yellow-500 mr-1" />
+                                )}
+                                <span className={`text-sm ${
+                                  submission.status === 'ACCEPTED' ? 'text-green-600' :
+                                  submission.status === 'WRONG_ANSWER' ? 'text-red-600' :
+                                  'text-yellow-600'
+                                }`}>
+                                  {submission.status.replace(/_/g, ' ')}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="font-semibold text-gray-900">
+                                {submission.score}/{submission.problemPoints}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="text-gray-600">
+                                {submission.testCasesPassed}/{submission.totalTestCases}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="text-sm text-gray-500">
+                                {new Date(submission.submittedAt).toLocaleString()}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <button
+                                onClick={() => setSelectedSubmission(submission)}
+                                className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+                              >
+                                View Code
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Code Modal */}
+                  {selectedSubmission && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+                      <div className="bg-white rounded-lg p-6 max-w-4xl w-full max-h-[80vh] overflow-y-auto">
+                        <div className="flex justify-between items-start mb-4">
+                          <div>
+                            <h3 className="text-lg font-semibold text-gray-900">
+                              Submission Details
+                            </h3>
+                            <p className="text-sm text-gray-600">
+                              {selectedSubmission.problemTitle} - {selectedSubmission.language}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => setSelectedSubmission(null)}
+                            className="text-gray-400 hover:text-gray-600"
+                          >
+                            <XCircle className="h-6 w-6" />
+                          </button>
+                        </div>
+
+                        <div className="mb-4 flex items-center space-x-4 text-sm">
+                          <span className={`flex items-center ${
+                            selectedSubmission.status === 'ACCEPTED' ? 'text-green-600' :
+                            selectedSubmission.status === 'WRONG_ANSWER' ? 'text-red-600' :
+                            'text-yellow-600'
+                          }`}>
+                            {selectedSubmission.status === 'ACCEPTED' ? (
+                              <CheckCircle className="h-4 w-4 mr-1" />
+                            ) : selectedSubmission.status === 'WRONG_ANSWER' ? (
+                              <XCircle className="h-4 w-4 mr-1" />
+                            ) : (
+                              <AlertCircle className="h-4 w-4 mr-1" />
+                            )}
+                            {selectedSubmission.status.replace(/_/g, ' ')}
+                          </span>
+                          <span className="text-gray-600">
+                            Score: {selectedSubmission.score}/{selectedSubmission.problemPoints}
+                          </span>
+                          <span className="text-gray-600">
+                            Test Cases: {selectedSubmission.testCasesPassed}/{selectedSubmission.totalTestCases}
+                          </span>
+                          {selectedSubmission.executionTime && (
+                            <span className="text-gray-600">
+                              Time: {selectedSubmission.executionTime}ms
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="bg-gray-900 rounded-lg p-4 overflow-x-auto">
+                          <pre className="text-sm text-gray-300 font-mono">
+                            <code>{selectedSubmission.code}</code>
+                          </pre>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  You haven't made any submissions for this contest yet.
+                </div>
+              )}
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

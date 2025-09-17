@@ -2,6 +2,7 @@ package com.shodhacode.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -11,8 +12,8 @@ import java.util.Set;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(exclude = "participatingContests")
-@ToString(exclude = "participatingContests")
+@EqualsAndHashCode(exclude = "contestParticipations")
+@ToString(exclude = "contestParticipations")
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -30,11 +31,7 @@ public class User {
     private Integer score = 0;
     private Integer problemsSolved = 0;
     
-    @ManyToMany
-    @JoinTable(
-        name = "contest_participants",
-        joinColumns = @JoinColumn(name = "user_id"),
-        inverseJoinColumns = @JoinColumn(name = "contest_id")
-    )
-    private Set<Contest> participatingContests = new HashSet<>();
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+    @JsonIgnore
+    private Set<ContestParticipant> contestParticipations = new HashSet<>();
 }

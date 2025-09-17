@@ -40,9 +40,12 @@ public class Submission {
     
     // Timestamps
     private LocalDateTime submittedAt = LocalDateTime.now();
-    
+
     // Performance metrics
     private Long executionTime;
+
+    // Test run flag (true = only run sample cases, false = full submission)
+    private Boolean isTestRun = false;
     
     // Large text fields at the end
     @Column(length = 10000)

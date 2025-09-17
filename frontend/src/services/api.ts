@@ -72,6 +72,11 @@ export const problemApi = {
 };
 
 export const submissionApi = {
+  run: async (request: SubmissionRequest): Promise<SubmissionResponse> => {
+    const { data } = await api.post('/submissions/run', request);
+    return data;
+  },
+
   submit: async (request: SubmissionRequest): Promise<SubmissionResponse> => {
     const { data } = await api.post('/submissions', request);
     return data;

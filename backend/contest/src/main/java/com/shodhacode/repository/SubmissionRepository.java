@@ -40,4 +40,15 @@ public interface SubmissionRepository extends JpaRepository<Submission, String> 
             "FROM Submission s " +
             "WHERE s.problem.contest.id = :contestId")
     Long countUniqueUsersByContestId(@Param("contestId") Long contestId);
+
+    @Query("SELECT s.user, " +
+            "COUNT(DISTINCT CASE WHEN s.status = 'ACCEPTED' OR s.status = 'PARTIALLY_ACCEPTED' THEN s.problem.id END), " +
+            "COALESCE(SUM(DISTINCT CASE WHEN s.status IN ('ACCEPTED', 'PARTIALLY_ACCEPTED') THEN s.score ELSE 0 END), 0), " +
+            "MAX(s.submittedAt) " +
+            "FROM Submission s " +
+            "WHERE s.problem.id IN (SELECT p.id FROM Problem p WHERE p.contest.id = :contestId) " +
+            "GROUP BY s.user " +
+            "HAVING COUNT(s.id) > 0 " +
+            "ORDER BY SUM(DISTINCT CASE WHEN s.status IN ('ACCEPTED', 'PARTIALLY_ACCEPTED') THEN s.score ELSE 0 END) DESC")
+    List<Object[]> findContestSubmissionStats(@Param("contestId") Long contestId);
 }

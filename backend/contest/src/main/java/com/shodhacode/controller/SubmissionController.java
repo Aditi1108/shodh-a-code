@@ -3,10 +3,12 @@ package com.shodhacode.controller;
 import com.shodhacode.constants.ApplicationConstants;
 import com.shodhacode.dto.SubmissionRequest;
 import com.shodhacode.dto.SubmissionResponse;
+import com.shodhacode.entity.Contest;
 import com.shodhacode.entity.Submission;
 import com.shodhacode.entity.Problem;
 import com.shodhacode.entity.User;
 import com.shodhacode.entity.ProgrammingLanguage;
+import com.shodhacode.repository.ContestParticipantRepository;
 import com.shodhacode.repository.ProblemRepository;
 import com.shodhacode.repository.SubmissionRepository;
 import com.shodhacode.repository.UserRepository;
@@ -31,11 +33,12 @@ public class SubmissionController {
     private final SubmissionRepository submissionRepository;
     private final UserRepository userRepository;
     private final ProblemRepository problemRepository;
+    private final ContestParticipantRepository contestParticipantRepository;
     private final SimpleQueueService queueService;
 
-    @PostMapping
-    public ResponseEntity<?> submitCode(@Valid @RequestBody SubmissionRequest request) {
-        log.info("Received submission from user {} for problem {}",
+    @PostMapping("/run")
+    public ResponseEntity<?> runCode(@Valid @RequestBody SubmissionRequest request) {
+        log.info("Received RUN request from user {} for problem {}",
                 request.getUserId(), request.getProblemId());
 
         // Validate user exists
@@ -46,6 +49,62 @@ public class SubmissionController {
         Problem problem = problemRepository.findById(request.getProblemId())
                 .orElseThrow(() -> new RuntimeException("Problem not found"));
 
+        // Check if user has joined the contest
+        Contest contest = problem.getContest();
+        if (contest != null) {
+            boolean hasJoined = contestParticipantRepository.existsByUserIdAndContestId(user.getId(), contest.getId());
+            if (!hasJoined) {
+                log.warn("User {} has not joined contest {} - rejecting submission", user.getUsername(), contest.getTitle());
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body("Please join the contest first before attempting problems");
+            }
+        }
+
+        // Create submission for testing (not saved to leaderboard)
+        Submission submission = new Submission();
+        submission.setUser(user);
+        submission.setProblem(problem);
+        submission.setCode(request.getCode());
+        submission.setLanguage(request.getLanguage());
+        submission.setSubmittedAt(LocalDateTime.now());
+        submission.setIsTestRun(true);  // Mark as test run
+
+        submission = submissionRepository.save(submission);
+        log.info("Created test run with ID: {}", submission.getId());
+
+        // Add to processing queue (will only run sample test cases)
+        queueService.addToQueue(submission.getId());
+
+        return ResponseEntity.ok(new SubmissionResponse(
+                submission.getId(),
+                submission.getStatus().toString()
+        ));
+    }
+
+    @PostMapping
+    public ResponseEntity<?> submitCode(@Valid @RequestBody SubmissionRequest request) {
+        log.info("Received SUBMIT from user {} for problem {}",
+                request.getUserId(), request.getProblemId());
+
+        // Validate user exists
+        User user = userRepository.findById(request.getUserId())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Validate problem exists
+        Problem problem = problemRepository.findById(request.getProblemId())
+                .orElseThrow(() -> new RuntimeException("Problem not found"));
+
+        // Check if user has joined the contest
+        Contest contest = problem.getContest();
+        if (contest != null) {
+            boolean hasJoined = contestParticipantRepository.existsByUserIdAndContestId(user.getId(), contest.getId());
+            if (!hasJoined) {
+                log.warn("User {} has not joined contest {} - rejecting submission", user.getUsername(), contest.getTitle());
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body("Please join the contest first before attempting problems");
+            }
+        }
+
         // Create submission
         Submission submission = new Submission();
         submission.setUser(user);
@@ -53,11 +112,12 @@ public class SubmissionController {
         submission.setCode(request.getCode());
         submission.setLanguage(request.getLanguage());
         submission.setSubmittedAt(LocalDateTime.now());
+        submission.setIsTestRun(false);  // Full submission
 
         submission = submissionRepository.save(submission);
         log.info("Created submission with ID: {}", submission.getId());
 
-        // Add to processing queue
+        // Add to processing queue (will run ALL test cases)
         queueService.addToQueue(submission.getId());
 
         return ResponseEntity.ok(new SubmissionResponse(

@@ -16,8 +16,8 @@ import java.util.Set;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(exclude = {"participants", "problems"})
-@ToString(exclude = {"participants", "problems"})
+@EqualsAndHashCode(exclude = {"contestParticipants", "problems"})
+@ToString(exclude = {"contestParticipants", "problems"})
 public class Contest {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -36,7 +36,7 @@ public class Contest {
     @JsonManagedReference
     private List<Problem> problems = new ArrayList<>();
     
-    @ManyToMany(mappedBy = "participatingContests")
+    @OneToMany(mappedBy = "contest", cascade = CascadeType.ALL)
     @JsonIgnore
-    private Set<User> participants = new HashSet<>();
+    private Set<ContestParticipant> contestParticipants = new HashSet<>();
 }

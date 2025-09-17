@@ -4,6 +4,8 @@ import com.shodhacode.constants.ApplicationConstants;
 import com.shodhacode.entity.*;
 import com.shodhacode.repository.SubmissionRepository;
 import com.shodhacode.repository.ProblemRepository;
+import com.shodhacode.repository.ContestParticipantRepository;
+import com.shodhacode.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -18,6 +20,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.UUID;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.Set;
+import java.util.HashSet;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -26,6 +33,8 @@ public class CodeExecutorService {
 
     private final SubmissionRepository submissionRepository;
     private final ProblemRepository problemRepository;
+    private final ContestParticipantRepository contestParticipantRepository;
+    private final UserRepository userRepository;
     
     @Value("${docker.execution.enabled:false}")
     private boolean dockerEnabled;
@@ -164,15 +173,25 @@ public class CodeExecutorService {
                 submissionRepository.save(submission);
                 return;
             }
-            
-            // Sort test cases: non-hidden (visible) first, then hidden
+
+            // Filter test cases based on submission type
             List<TestCase> sortedTestCases = new ArrayList<>();
-            testCases.stream()
-                .filter(tc -> !tc.getIsHidden())
-                .forEach(sortedTestCases::add);
-            testCases.stream()
-                .filter(tc -> tc.getIsHidden())
-                .forEach(sortedTestCases::add);
+            if (submission.getIsTestRun()) {
+                // For test runs, only use sample (non-hidden) test cases
+                testCases.stream()
+                    .filter(tc -> !tc.getIsHidden())
+                    .forEach(sortedTestCases::add);
+                log.info("Test run mode: Running {} sample test cases", sortedTestCases.size());
+            } else {
+                // For full submissions, use all test cases (samples first, then hidden)
+                testCases.stream()
+                    .filter(tc -> !tc.getIsHidden())
+                    .forEach(sortedTestCases::add);
+                testCases.stream()
+                    .filter(tc -> tc.getIsHidden())
+                    .forEach(sortedTestCases::add);
+                log.info("Full submission: Running {} total test cases", sortedTestCases.size());
+            }
             
             int testCasesPassed = 0;
             int totalTestCases = sortedTestCases.size();
@@ -300,21 +319,37 @@ public class CodeExecutorService {
             }
             
             // Handle remaining points due to integer division
-            if (testCasesPassed == totalTestCases && totalTestCases > 0) {
-                totalScore = problem.getPoints();
-                submission.setStatus(SubmissionStatus.ACCEPTED);
-                submission.setOutput("All test cases passed! Score: " + totalScore);
-            } else if (testCasesPassed > 0) {
-                submission.setStatus(SubmissionStatus.PARTIALLY_ACCEPTED);
-                submission.setOutput(output.toString() + "\nTest cases passed: " + testCasesPassed + "/" + totalTestCases + 
-                                   "\nScore: " + totalScore + "/" + problem.getPoints());
+            if (submission.getIsTestRun()) {
+                // For test runs, don't show scores
+                if (testCasesPassed == totalTestCases && totalTestCases > 0) {
+                    submission.setStatus(SubmissionStatus.ACCEPTED);
+                    submission.setOutput("All sample test cases passed!");
+                } else if (testCasesPassed > 0) {
+                    submission.setStatus(SubmissionStatus.PARTIALLY_ACCEPTED);
+                    submission.setOutput(output.toString() + "\nSample test cases passed: " + testCasesPassed + "/" + totalTestCases);
+                } else {
+                    submission.setStatus(SubmissionStatus.WRONG_ANSWER);
+                    submission.setOutput(output.toString() + "\nSample test cases passed: 0/" + totalTestCases);
+                }
+                submission.setScore(0); // No score for test runs
             } else {
-                submission.setStatus(SubmissionStatus.WRONG_ANSWER);
-                submission.setOutput(output.toString() + "\nTest cases passed: 0/" + totalTestCases +
-                                   "\nScore: 0/" + problem.getPoints());
+                // For full submissions, show scores
+                if (testCasesPassed == totalTestCases && totalTestCases > 0) {
+                    totalScore = problem.getPoints();
+                    submission.setStatus(SubmissionStatus.ACCEPTED);
+                    submission.setOutput("All test cases passed!\nScore: " + totalScore);
+                } else if (testCasesPassed > 0) {
+                    submission.setStatus(SubmissionStatus.PARTIALLY_ACCEPTED);
+                    submission.setOutput(output.toString() + "\nTest cases passed: " + testCasesPassed + "/" + totalTestCases +
+                                       "\nScore: " + totalScore + "/" + problem.getPoints());
+                } else {
+                    submission.setStatus(SubmissionStatus.WRONG_ANSWER);
+                    submission.setOutput(output.toString() + "\nTest cases passed: 0/" + totalTestCases +
+                                       "\nScore: 0/" + problem.getPoints());
+                }
+                submission.setScore(totalScore);
             }
-            
-            submission.setScore(totalScore);
+
             submission.setTestCasesPassed(testCasesPassed);
             submission.setTotalTestCases(totalTestCases);
             submission.setExecutionTime(totalExecutionTime);
@@ -324,6 +359,116 @@ public class CodeExecutorService {
         }
         
         submissionRepository.save(submission);
+
+        // Update contest participant score if this is a full submission (not a test run)
+        if (!submission.getIsTestRun()) {
+            updateContestParticipantScore(submission);
+        }
+    }
+
+    private void updateUserGlobalScore(User user) {
+        try {
+            // Get all contest participations for this user
+            List<ContestParticipant> participations = contestParticipantRepository.findByUserId(user.getId());
+
+            // Calculate total score and unique problems solved across all contests
+            int totalGlobalScore = 0;
+            Set<Long> uniqueProblemsSolved = new HashSet<>();
+
+            for (ContestParticipant participation : participations) {
+                totalGlobalScore += (participation.getScore() != null ? participation.getScore() : 0);
+
+                // Get problems solved in this contest
+                Contest contest = participation.getContest();
+                if (contest != null) {
+                    List<Submission> acceptedSubmissions = submissionRepository
+                        .findByUserIdAndContestId(user.getId(), contest.getId())
+                        .stream()
+                        .filter(s -> !s.getIsTestRun() &&
+                                    (s.getStatus() == SubmissionStatus.ACCEPTED ||
+                                     s.getStatus() == SubmissionStatus.PARTIALLY_ACCEPTED) &&
+                                    s.getScore() != null && s.getScore() > 0)
+                        .collect(Collectors.toList());
+
+                    for (Submission s : acceptedSubmissions) {
+                        uniqueProblemsSolved.add(s.getProblem().getId());
+                    }
+                }
+            }
+
+            // Update user's global score
+            user.setScore(totalGlobalScore);
+            user.setProblemsSolved(uniqueProblemsSolved.size());
+            userRepository.save(user);
+
+            log.info("Updated user global score: User {} - Total Score: {}, Unique Problems Solved: {}",
+                user.getUsername(), totalGlobalScore, uniqueProblemsSolved.size());
+
+        } catch (Exception e) {
+            log.error("Failed to update user global score: {}", e.getMessage());
+        }
+    }
+
+    private void updateContestParticipantScore(Submission submission) {
+        // Only update scores for accepted or partially accepted submissions
+        if (submission.getStatus() != SubmissionStatus.ACCEPTED &&
+            submission.getStatus() != SubmissionStatus.PARTIALLY_ACCEPTED) {
+            return;
+        }
+
+        try {
+            // Get the contest from the problem
+            Contest contest = submission.getProblem().getContest();
+            if (contest == null) {
+                log.debug("No contest associated with problem {}", submission.getProblem().getId());
+                return;
+            }
+
+            // Find the contest participant
+            contestParticipantRepository.findByUserIdAndContestId(
+                submission.getUser().getId(),
+                contest.getId()
+            ).ifPresent(participant -> {
+                // Get all accepted/partially accepted submissions for this user in this contest (excluding test runs)
+                List<Submission> userContestSubmissions = submissionRepository
+                    .findByUserIdAndContestId(submission.getUser().getId(), contest.getId())
+                    .stream()
+                    .filter(s -> !s.getIsTestRun() &&
+                                (s.getStatus() == SubmissionStatus.ACCEPTED ||
+                                 s.getStatus() == SubmissionStatus.PARTIALLY_ACCEPTED))
+                    .collect(Collectors.toList());
+
+                // Calculate total score (best score per problem)
+                Map<Long, Integer> bestScorePerProblem = new HashMap<>();
+                for (Submission s : userContestSubmissions) {
+                    Long problemId = s.getProblem().getId();
+                    int currentScore = s.getScore() != null ? s.getScore() : 0;
+                    bestScorePerProblem.merge(problemId, currentScore, Math::max);
+                }
+
+                int totalScore = bestScorePerProblem.values().stream()
+                    .mapToInt(Integer::intValue)
+                    .sum();
+                int problemsSolved = (int) bestScorePerProblem.entrySet().stream()
+                    .filter(entry -> entry.getValue() > 0)
+                    .count();
+
+                // Update participant scores
+                participant.setScore(totalScore);
+                participant.setProblemsSolved(problemsSolved);
+                contestParticipantRepository.save(participant);
+
+                log.info("Updated contest participant score: User {} in Contest {} - Score: {}, Problems: {}",
+                    submission.getUser().getUsername(), contest.getTitle(), totalScore, problemsSolved);
+
+                // Update user's global score (sum of all contest scores)
+                updateUserGlobalScore(submission.getUser());
+            });
+
+        } catch (Exception e) {
+            log.error("Failed to update contest participant score: {}", e.getMessage());
+            // Don't fail the submission if score update fails
+        }
     }
     
     
@@ -346,7 +491,7 @@ public class CodeExecutorService {
     private String getRunCommand(ProgrammingLanguage language, String fileName) {
         switch (language) {
             case JAVA:
-                return "sh -c 'javac " + fileName + " && java Solution'";
+                return "bash -c 'javac " + fileName + " && exec java Solution'";
             case PYTHON3:
                 return "python3 " + fileName;
             case CPP:

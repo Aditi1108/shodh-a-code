@@ -222,7 +222,7 @@ public class DataInitializer {
             problem2.setOutputFormat("true or false");
             problem2.setConstraints("-2^31 <= x <= 2^31 - 1");
             problem2.setPoints(100);
-            problem2.setTimeLimit(1000);
+            problem2.setTimeLimit(5000); // 5 seconds for Java compilation and execution
             problem2.setMemoryLimit(128);
             problem2.setContest(savedActiveContest);
             Problem savedProblem2 = problemRepository.save(problem2);
@@ -232,7 +232,7 @@ public class DataInitializer {
             tc4.setInput("121");
             tc4.setExpectedOutput("true");
             tc4.setIsHidden(false);
-            tc4.setTimeLimit(1000);
+            tc4.setTimeLimit(5000);
             tc4.setMemoryLimit(128);
             tc4.setProblem(savedProblem2);
             testCaseRepository.save(tc4);
@@ -241,7 +241,7 @@ public class DataInitializer {
             tc5.setInput("-121");
             tc5.setExpectedOutput("false");
             tc5.setIsHidden(false);
-            tc5.setTimeLimit(1000);
+            tc5.setTimeLimit(5000);
             tc5.setMemoryLimit(128);
             tc5.setProblem(savedProblem2);
             testCaseRepository.save(tc5);
@@ -250,7 +250,7 @@ public class DataInitializer {
             tc6.setInput("10");
             tc6.setExpectedOutput("false");
             tc6.setIsHidden(true);
-            tc6.setTimeLimit(1000);
+            tc6.setTimeLimit(5000);
             tc6.setMemoryLimit(128);
             tc6.setProblem(savedProblem2);
             testCaseRepository.save(tc6);
@@ -268,7 +268,7 @@ public class DataInitializer {
             problem3.setOutputFormat("n lines, each containing the appropriate FizzBuzz value");
             problem3.setConstraints("1 <= n <= 10^4");
             problem3.setPoints(50);
-            problem3.setTimeLimit(1000);
+            problem3.setTimeLimit(5000); // 5 seconds for Java compilation and execution
             problem3.setMemoryLimit(128);
             problem3.setContest(savedActiveContest);
             Problem savedProblem3 = problemRepository.save(problem3);
@@ -278,7 +278,7 @@ public class DataInitializer {
             tc7.setInput("3");
             tc7.setExpectedOutput("1\n2\nFizz");
             tc7.setIsHidden(false);
-            tc7.setTimeLimit(1000);
+            tc7.setTimeLimit(5000);
             tc7.setMemoryLimit(128);
             tc7.setProblem(savedProblem3);
             testCaseRepository.save(tc7);
@@ -287,7 +287,7 @@ public class DataInitializer {
             tc8.setInput("5");
             tc8.setExpectedOutput("1\n2\nFizz\n4\nBuzz");
             tc8.setIsHidden(false);
-            tc8.setTimeLimit(1000);
+            tc8.setTimeLimit(5000);
             tc8.setMemoryLimit(128);
             tc8.setProblem(savedProblem3);
             testCaseRepository.save(tc8);
@@ -296,7 +296,7 @@ public class DataInitializer {
             tc9.setInput("15");
             tc9.setExpectedOutput("1\n2\nFizz\n4\nBuzz\nFizz\n7\n8\nFizz\nBuzz\n11\nFizz\n13\n14\nFizzBuzz");
             tc9.setIsHidden(true);
-            tc9.setTimeLimit(1000);
+            tc9.setTimeLimit(5000);
             tc9.setMemoryLimit(128);
             tc9.setProblem(savedProblem3);
             testCaseRepository.save(tc9);

@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Trophy, Code, Clock, Calendar } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { contestApi } from '../services/api';
@@ -8,19 +8,72 @@ const Home = ({ user }: { user: any }) => {
   const [activeContestsList, setActiveContestsList] = useState<any[]>([]);
   const [upcomingContests, setUpcomingContests] = useState<any[]>([]);
   const [joiningContest, setJoiningContest] = useState<number | null>(null);
+  const [joinedStatus, setJoinedStatus] = useState<{ [key: number]: boolean }>({});
+  const [currentUserData, setCurrentUserData] = useState<any>(user);
   const navigate = useNavigate();
-  const { joinContest, isContestJoined } = useStore();
-  
+  const location = useLocation();
+  const { joinContest } = useStore();
+
   useEffect(() => {
     loadDashboardData();
+    if (user) {
+      fetchLatestUserData();
+    }
+  }, [user]);
+
+  // Refresh data when navigating to this page
+  useEffect(() => {
+    if (user && location.pathname === '/') {
+      fetchLatestUserData();
+    }
+  }, [location, user]);
+
+  // Refresh data when page becomes visible (user navigates back)
+  useEffect(() => {
+    const handleFocus = () => {
+      if (user) {
+        fetchLatestUserData();
+        loadDashboardData();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+
+    // Also check on visibility change
+    const handleVisibilityChange = () => {
+      if (!document.hidden && user) {
+        fetchLatestUserData();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [user]);
   
+  const fetchLatestUserData = async () => {
+    if (!user?.id) return;
+
+    try {
+      const response = await fetch(`http://localhost:8080/api/users/${user.id}`);
+      if (response.ok) {
+        const updatedUser = await response.json();
+        setCurrentUserData(updatedUser);
+      }
+    } catch (err) {
+      console.error('Error fetching updated user data:', err);
+    }
+  };
+
   const loadDashboardData = async () => {
     try {
       // Load contests
       const contests = await contestApi.getAll();
       const now = new Date();
-      
+
       // Get active contests
       const active = contests.filter(c => {
         const start = new Date(c.startTime);
@@ -28,14 +81,32 @@ const Home = ({ user }: { user: any }) => {
         return now >= start && now <= end;
       });
       setActiveContestsList(active);
-      
+
       // Get upcoming contests
       const upcoming = contests
         .filter(c => new Date(c.startTime) > now)
         .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
         .slice(0, 2);
       setUpcomingContests(upcoming);
-      
+
+      // Check join status for active contests if user is logged in
+      if (user && active.length > 0) {
+        const statusMap: { [key: number]: boolean } = {};
+        for (const contest of active) {
+          try {
+            const response = await fetch(`http://localhost:8080/api/contests/${contest.id}/participants/${user.id}`);
+            if (response.ok) {
+              const joined = await response.json();
+              statusMap[contest.id] = joined;
+            }
+          } catch (err) {
+            console.error(`Error checking join status for contest ${contest.id}:`, err);
+            statusMap[contest.id] = false;
+          }
+        }
+        setJoinedStatus(statusMap);
+      }
+
     } catch (err) {
       console.error('Error loading dashboard data:', err);
     }
@@ -62,8 +133,8 @@ const Home = ({ user }: { user: any }) => {
   };
   
   const stats = [
-    { icon: Trophy, label: 'Total Score', value: user?.score || 0, color: 'text-yellow-500 bg-yellow-100' },
-    { icon: Code, label: 'Problems Solved', value: user?.problemsSolved || 0, color: 'text-green-500 bg-green-100' },
+    { icon: Trophy, label: 'Total Score', value: currentUserData?.score || 0, color: 'text-yellow-500 bg-yellow-100' },
+    { icon: Code, label: 'Problems Solved', value: currentUserData?.problemsSolved || 0, color: 'text-green-500 bg-green-100' },
     { icon: Clock, label: 'Active Contests', value: activeContestsList.length, color: 'text-blue-500 bg-blue-100' },
   ];
 
@@ -105,8 +176,8 @@ const Home = ({ user }: { user: any }) => {
                       {contest.problems?.length || 0} problems available
                     </div>
                   </div>
-                  {isContestJoined(contest.id) ? (
-                    <Link 
+                  {joinedStatus[contest.id] ? (
+                    <Link
                       to={`/contest/${contest.id}`}
                       className="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-all"
                     >
@@ -118,7 +189,7 @@ const Home = ({ user }: { user: any }) => {
                       disabled={joiningContest === contest.id || !user}
                       className="px-4 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {joiningContest === contest.id ? 'Joining...' : 'Join Now'}
+                      {joiningContest === contest.id ? 'Joining...' : 'Join Contest'}
                     </button>
                   )}
                 </div>
