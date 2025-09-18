@@ -1,459 +1,195 @@
-# Shodh-a-Code Backend
+# Shodh-a-Code Backend Service
 
-A Spring Boot-based competitive programming platform backend that supports multiple programming languages, real-time code execution, and contest management.
+Spring Boot backend for the competitive programming contest platform.
 
-## Table of Contents
-- [Features](#features)
-- [Tech Stack](#tech-stack)
-- [Prerequisites](#prerequisites)
-- [Local Setup](#local-setup)
-- [Running the Application](#running-the-application)
-- [API Documentation](#api-documentation)
-- [Database Schema](#database-schema)
-- [Configuration](#configuration)
-- [Troubleshooting](#troubleshooting)
+## 🏗️ Architecture
 
-## Features
-
-- **Multi-language Support**: Java, Python3, C++, C, JavaScript, C#, Go, Rust, Kotlin, Swift
-- **Contest Management**: Create and manage programming contests
-- **Real-time Code Execution**: Docker-based sandboxed execution environment
-- **Partial Scoring**: Score based on test cases passed
-- **Asynchronous Processing**: Queue-based submission processing
-- **H2 Database Console**: Built-in database viewer
-- **CORS Enabled**: Ready for frontend integration
-
-## Tech Stack
-
+### Tech Stack
 - **Framework**: Spring Boot 3.x
-- **Database**: H2 (In-memory for development)
+- **Language**: Java 17
+- **Database**: H2 (in-memory)
 - **Build Tool**: Maven
-- **Java Version**: 17
-- **Code Execution**: Docker (optional)
-- **Queue**: ConcurrentLinkedQueue for async processing
+- **Container Runtime**: Docker
 
-## Prerequisites
-
-1. **Java 17** or higher
-   ```bash
-   java -version
-   ```
-
-2. **Maven 3.6+**
-   ```bash
-   mvn -version
-   ```
-
-3. **Docker** (Optional - for code execution)
-   ```bash
-   docker --version
-   ```
-
-## Local Setup
-
-### 1. Clone the Repository
-```bash
-git clone https://github.com/yourusername/shodh-a-code.git
-cd shodh-a-code/backend/contest
+### Project Structure
+```
+backend/
+├── contest/                    # Main application module
+│   ├── src/main/java/com/shodhacode/
+│   │   ├── config/            # Configuration classes
+│   │   ├── controller/        # REST API endpoints
+│   │   ├── dto/              # Data Transfer Objects
+│   │   ├── entity/           # JPA entities
+│   │   ├── repository/       # Data repositories
+│   │   └── service/          # Business logic
+│   └── pom.xml
+└── docker/
+    └── executor/              # Code execution environment
+        └── Dockerfile
 ```
 
-### 2. Set JAVA_HOME Environment Variable
+## 🚀 Key Features
 
-#### Windows:
-```bash
-set JAVA_HOME=C:\Program Files\Java\jdk-17
-```
+### Code Execution Engine
+- **Secure Isolation**: Docker containers for each submission
+- **Resource Limits**: CPU, memory, and time constraints
+- **Multi-Language Support**: Java, Python3, C++, JavaScript
+- **Process Management**: Java ProcessBuilder for Docker orchestration
 
-#### Linux/Mac:
-```bash
-export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
-```
+### API Services
+- Contest management
+- User registration and tracking
+- Code submission processing
+- Real-time status updates
+- Leaderboard calculation
 
-### 3. Build the Project
-```bash
-mvn clean install
-```
+## 📡 API Endpoints
 
-## Running the Application
+### Contest Endpoints
+- `GET /api/contests` - List all contests
+- `GET /api/contests/{id}` - Get contest details
+- `GET /api/contests/{id}/leaderboard` - Get contest leaderboard
+- `POST /api/contests/join` - Join a contest
 
-### Using Maven
-```bash
-mvn spring-boot:run
-```
+### Submission Endpoints
+- `POST /api/submissions` - Submit code for evaluation
+- `POST /api/submissions/run` - Test run without saving
+- `GET /api/submissions/{id}` - Get submission status
+- `GET /api/submissions/user/{userId}/contest/{contestId}` - User submissions
 
-### Using IntelliJ IDEA
-1. Open the project in IntelliJ IDEA
-2. Navigate to `src/main/java/com/shodhacode/ContestApplication.java`
-3. Right-click and select "Run 'ContestApplication'"
+### User Endpoints
+- `POST /api/users/register` - Register new user
+- `GET /api/users/check/{username}` - Check username availability
+- `GET /api/users/{id}` - Get user details
 
-### Using Command Line
-```bash
-mvn clean package
-java -jar target/contest-0.0.1-SNAPSHOT.jar
-```
+## 🔧 Configuration
 
-The application will start on **http://localhost:8080**
-
-## API Documentation
-
-### Base URL
-```
-http://localhost:8080/api
-```
-
-### Authentication
-Currently, no authentication is implemented (development mode).
-
-### API Endpoints
-
-#### User Management
-
-| Method | Endpoint | Description | Request Body |
-|--------|----------|-------------|--------------|
-| GET | `/users` | Get all users | - |
-| GET | `/users/{id}` | Get user by ID | - |
-| POST | `/users/register` | Register new user | `{"username": "string", "email": "string"}` |
-| GET | `/users/check/{username}` | Check if user exists | - |
-
-#### Contest Management
-
-| Method | Endpoint | Description | Request Body |
-|--------|----------|-------------|--------------|
-| GET | `/contests` | Get all contests | - |
-| GET | `/contests/{id}` | Get contest by ID | - |
-| POST | `/contests` | Create new contest | Contest object |
-| GET | `/contests/{id}/problems` | Get problems for contest | - |
-| GET | `/contests/{id}/leaderboard` | Get contest leaderboard | - |
-
-#### Problem Management
-
-| Method | Endpoint | Description | Request Body |
-|--------|----------|-------------|--------------|
-| GET | `/problems` | Get all problems | - |
-| GET | `/problems/{id}` | Get problem by ID | - |
-| POST | `/problems` | Create new problem | Problem object |
-
-#### Submission Management
-
-| Method | Endpoint | Description | Request Body |
-|--------|----------|-------------|--------------|
-| POST | `/submissions` | Submit code | `{"userId": 1, "problemId": 1, "code": "string", "language": "JAVA"}` |
-| GET | `/submissions/{id}` | Get submission status | - |
-| GET | `/submissions/user/{userId}/problem/{problemId}` | Get user's submissions for problem | - |
-| GET | `/submissions/user/{userId}/problem/{problemId}/latest` | Get latest submission | - |
-| GET | `/submissions/user/{userId}/contest/{contestId}` | Get user's contest submissions | - |
-
-### Sample API Requests
-
-#### Register User
-```bash
-curl -X POST http://localhost:8080/api/users/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "john_doe",
-    "email": "john@example.com"
-  }'
-```
-
-#### Submit Code
-```bash
-curl -X POST http://localhost:8080/api/submissions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "userId": 1,
-    "problemId": 1,
-    "code": "public class Solution {\n    public static void main(String[] args) {\n        System.out.println(\"Hello World\");\n    }\n}",
-    "language": "JAVA"
-  }'
-```
-
-## Database Schema
-
-### Entities
-
-#### User
-- `id` (Long): Primary key
-- `username` (String): Unique username
-- `email` (String): User email
-- `score` (Integer): Total score
-- `problemsSolved` (Integer): Count of solved problems
-
-#### Contest
-- `id` (Long): Primary key
-- `title` (String): Contest title
-- `description` (String): Contest description
-- `startTime` (LocalDateTime): Start time
-- `endTime` (LocalDateTime): End time
-- `isActive` (Boolean): Active status
-
-#### Problem
-- `id` (Long): Primary key
-- `title` (String): Problem title
-- `contest` (Contest): Associated contest
-- `description` (String): Problem statement
-- `inputFormat` (String): Input format description
-- `outputFormat` (String): Output format description
-- `points` (Integer): Maximum points
-- `timeLimit` (Integer): Time limit in milliseconds
-- `memoryLimit` (Integer): Memory limit in MB
-- `testCases` (List<TestCase>): Associated test cases
-
-#### TestCase
-- `id` (Long): Primary key
-- `problem` (Problem): Associated problem
-- `isHidden` (Boolean): Visibility flag (false = sample, true = hidden)
-- `timeLimit` (Integer): Time limit override
-- `memoryLimit` (Integer): Memory limit override
-- `input` (String): Test input
-- `expectedOutput` (String): Expected output
-
-#### Submission
-- `id` (String): UUID primary key
-- `user` (User): Submitting user
-- `problem` (Problem): Target problem
-- `status` (SubmissionStatus): Current status
-- `language` (ProgrammingLanguage): Programming language
-- `score` (Integer): Achieved score
-- `testCasesPassed` (Integer): Passed test cases count
-- `totalTestCases` (Integer): Total test cases count
-- `submittedAt` (LocalDateTime): Submission timestamp
-- `executionTime` (Long): Total execution time
-- `code` (String): Submitted code
-- `output` (String): Execution output
-- `errorMessage` (String): Error details if any
-
-### H2 Console Access
-
-Access the H2 database console at: **http://localhost:8080/h2-console**
-
-- **JDBC URL**: `jdbc:h2:mem:testdb`
-- **Username**: `sa`
-- **Password**: (leave empty)
-
-## Code Execution Flow
-
-### Overview
-The platform uses a queue-based asynchronous processing system with Docker containerization for secure code execution. Each submission goes through the following lifecycle:
-
-### Execution Flow Diagram
-```
-User Submits Code (Frontend)
-         ↓
-POST /api/submissions
-         ↓
-SubmissionController
-    - Creates Submission (status: PENDING)
-    - Saves to Database
-    - Adds to Queue
-         ↓
-SimpleQueueService (Background Thread)
-    - Polls Queue Continuously
-    - Picks Submission ID
-    - Calls CodeExecutorService
-         ↓
-CodeExecutorService
-    - Updates status to RUNNING
-    - Checks Docker availability
-         ↓
-    [Docker Enabled]              [Docker Disabled]
-         ↓                              ↓
-    executeWithDocker()          Set RUNTIME_ERROR
-    - Create temp directory       "Execution environment
-    - Write code to file           not available"
-    - For each test case:
-      * Run Docker container
-      * Execute code
-      * Compare outputs
-      * Update scores
-         ↓
-    Update Submission Status:
-    - ACCEPTED (all pass)
-    - PARTIALLY_ACCEPTED
-    - WRONG_ANSWER
-    - TIME_LIMIT_EXCEEDED
-    - COMPILATION_ERROR
-    - RUNTIME_ERROR
-         ↓
-Frontend Polls /api/submissions/{id}
-    - Every 2 seconds
-    - Stops on definitive state
-    - Displays results
-```
-
-### Key Components
-
-#### 1. SimpleQueueService
-- Runs as a background thread on application startup
-- Uses `ConcurrentLinkedQueue` for thread-safe operations
-- Processes submissions sequentially to manage resources
-
-#### 2. CodeExecutorService
-- Creates isolated Docker containers for each submission
-- Enforces time and memory limits
-- Supports 10 programming languages
-- Cleans up temporary files after execution
-
-#### 3. Docker Executor
-- Image: `shodha-executor`
-- Contains compilers/interpreters for all supported languages
-- Runs code as non-root user for security
-- Network isolation enabled
-
-### Docker Setup
-
-#### Building the Executor Image
-```bash
-cd backend/docker/executor
-./build.sh  # Linux/Mac
-build.bat   # Windows
-```
-
-#### Enabling Docker Execution
-1. Install Docker Desktop
-2. Ensure Docker daemon is running
-3. Build the executor image (see above)
-4. Set in `application.yml`:
-   ```yaml
-   docker:
-     execution:
-       enabled: true
-   ```
-5. Restart the backend server
-
-### Submission States
-- **PENDING**: Initial state when submitted
-- **RUNNING**: Currently being executed
-- **ACCEPTED**: All test cases passed
-- **PARTIALLY_ACCEPTED**: Some test cases passed
-- **WRONG_ANSWER**: Output doesn't match expected
-- **TIME_LIMIT_EXCEEDED**: Execution took too long
-- **MEMORY_LIMIT_EXCEEDED**: Used too much memory
-- **COMPILATION_ERROR**: Code failed to compile
-- **RUNTIME_ERROR**: Code crashed during execution
-
-### Test Case Execution
-1. **Sample Test Cases** (visible): Shown to users with input/output
-2. **Hidden Test Cases**: Used for scoring, details not revealed
-3. Execution order: Sample cases first, then hidden
-4. Scoring: Points distributed equally among all test cases
-
-### Security Features
-- Code runs in isolated Docker containers
-- Resource limits enforced (CPU, memory, time)
-- Network access disabled during execution
-- Temporary files cleaned up after execution
-- Non-root user execution in containers
-
-## Configuration
-
-### Application Properties (`application.yml`)
-
+### Application Properties (application.yml)
 ```yaml
+# Server Configuration
 server:
   port: 8080
   servlet:
     context-path: /api
 
+# Database Configuration
 spring:
   datasource:
     url: jdbc:h2:mem:contestdb
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
-
   h2:
     console:
       enabled: true
       path: /h2-console
 
+# Docker Configuration
 docker:
   execution:
-    enabled: false  # Set to true if Docker is available
+    enabled: true  # Docker execution is enabled
+  debug:
+    mode: true     # Preserves containers for debugging
   image:
     name: shodhacode-executor
 ```
 
-### Important Constants
+### CORS Configuration
+Configured to allow frontend on `http://localhost:5177`
 
-Located in `ApplicationConstants.java`:
-- `DEFAULT_TIME_LIMIT`: 2000ms
-- `DEFAULT_MEMORY_LIMIT`: 256MB
-- `DEFAULT_PROBLEM_POINTS`: 100
-- `MAX_CODE_LENGTH`: 10000 characters
+## 🐳 Docker Integration
 
-## Troubleshooting
-
-### Port Already in Use
+### Building the Executor Image
 ```bash
-# Windows
-netstat -ano | findstr :8080
-taskkill /PID <PID> /F
-
-# Linux/Mac
-lsof -i :8080
-kill -9 <PID>
+cd docker/executor
+docker build -t code-executor .
 ```
 
-### Maven Build Issues
+### Executor Image Contents
+- Ubuntu 22.04 base
+- OpenJDK 17
+- Python 3
+- G++ compiler
+- Node.js 18
+
+## 🗄️ Database Schema
+
+### Entities
+1. **User**: User accounts and scores
+2. **Contest**: Contest metadata and timing
+3. **Problem**: Problem statements and constraints
+4. **TestCase**: Input/output pairs for validation
+5. **Submission**: Code submissions and results
+6. **ContestParticipant**: User-contest relationships
+
+### Data Initialization
+Pre-populated with:
+- 3 sample users (alice, bob, charlie)
+- 2 active contests
+- 6 problems with test cases
+
+## 🔒 Security Measures
+
+1. **Container Isolation**: Each submission runs in isolated container
+2. **Network Disabled**: `--network none` for containers
+3. **Resource Limits**: Strict CPU, memory, time constraints
+4. **Input Validation**: All API inputs validated
+5. **Temporary File Cleanup**: Automatic cleanup after execution
+
+## 🏃 Running the Service
+
+### Prerequisites
+- Java 17+
+- Maven 3.6+
+- Docker Desktop
+
+### Start the Backend
 ```bash
-mvn clean
-mvn dependency:purge-local-repository
-mvn clean install
+mvn spring-boot:run
 ```
 
-### JAVA_HOME Not Set
-```bash
-# Windows
-set JAVA_HOME=C:\Program Files\Java\jdk-17
-set PATH=%JAVA_HOME%\bin;%PATH%
+### Access Points
+- API: `http://localhost:8080`
+- H2 Console: `http://localhost:8080/h2-console`
+  - JDBC URL: `jdbc:h2:mem:contestdb`
+  - Username: `sa`
+  - Password: (empty)
 
-# Linux/Mac
-export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
-export PATH=$JAVA_HOME/bin:$PATH
-```
+## 📊 Submission Flow
 
-### Docker Not Available
-If Docker is not installed, the application will return a runtime error for code execution. To disable Docker requirement:
-1. Set `docker.execution.enabled=false` in `application.yml`
-2. Code submissions will return mock results
+1. **Receive Submission**: API endpoint validates request
+2. **Queue Processing**: Added to SimpleQueueService
+3. **File Creation**: Write code to temporary file
+4. **Docker Execution**:
+   - Mount code volume
+   - Apply resource limits
+   - Execute with timeout
+5. **Output Validation**: Compare with expected output
+6. **Status Update**: Update database and return result
+7. **Cleanup**: Remove container and temp files
 
-## Development
+## 🧪 Testing
 
-### Adding New Programming Language
-1. Add language to `ProgrammingLanguage` enum
-2. Update `CodeExecutorService.getFileName()` method
-3. Update `CodeExecutorService.getRunCommand()` method
-4. Add language runtime to Docker executor image
+### Manual Testing
+1. Use the frontend application
+2. Submit code through the UI
+3. Monitor logs for execution details
 
-### Running Tests
-```bash
-mvn test
-```
+### API Testing
+Use tools like Postman or curl with endpoints documented above
 
-### Building for Production
-```bash
-mvn clean package -Pprod
-```
+## 📈 Performance Considerations
 
-## Sample Data
+- **Connection Pool**: HikariCP for database connections
+- **Async Processing**: @Async for submission processing
+- **In-Memory Database**: Fast for demo/development
+- **Container Reuse**: Considered for production optimization
 
-The application initializes with sample data on startup:
-- 3 users (alice, bob, charlie)
-- 1 contest with 3 problems
-- 8 test cases (mix of visible and hidden)
+## 🔄 Future Improvements
 
-## Contributing
+1. **Production Database**: PostgreSQL/MySQL
+2. **Message Queue**: RabbitMQ/Redis for submissions
+3. **Caching Layer**: Redis for leaderboard
+4. **Metrics**: Prometheus/Grafana monitoring
+5. **Container Orchestration**: Kubernetes deployment
 
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
+---
 
-## License
-
-This project is part of the Shodh-a-Code platform.
-
-## Support
-
-For issues and questions, please create an issue in the GitHub repository.
+Built for the Shodh AI Full Stack Engineer Assessment

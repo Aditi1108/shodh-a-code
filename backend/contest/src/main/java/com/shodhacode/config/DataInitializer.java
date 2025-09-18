@@ -20,7 +20,9 @@ public class DataInitializer {
     CommandLineRunner initDatabase(UserRepository userRepository,
                                   ContestRepository contestRepository,
                                   ProblemRepository problemRepository,
-                                  TestCaseRepository testCaseRepository) {
+                                  TestCaseRepository testCaseRepository,
+                                  ContestParticipantRepository contestParticipantRepository,
+                                  SubmissionRepository submissionRepository) {
         return args -> {
             log.info("Initializing sample data...");
 
@@ -28,17 +30,34 @@ public class DataInitializer {
             User user1 = new User();
             user1.setUsername("alice");
             user1.setEmail("alice@example.com");
+            user1.setFullName("Alice Johnson");
+            user1.setScore(125); // Global score from ended contest
+            user1.setProblemsSolved(2); // Count Vowels + Sum of Digits
             userRepository.save(user1);
 
             User user2 = new User();
             user2.setUsername("bob");
             user2.setEmail("bob@example.com");
+            user2.setFullName("Bob Williams");
+            user2.setScore(75); // Global score from ended contest
+            user2.setProblemsSolved(1); // Count Vowels only
             userRepository.save(user2);
 
             User user3 = new User();
             user3.setUsername("charlie");
             user3.setEmail("charlie@example.com");
+            user3.setFullName("Charlie Brown");
+            user3.setScore(50); // Global score from ended contest
+            user3.setProblemsSolved(1); // Sum of Digits only
             userRepository.save(user3);
+
+            User user4 = new User();
+            user4.setUsername("dylan");
+            user4.setEmail("dylan@example.com");
+            user4.setFullName("Dylan Smith");
+            user4.setScore(0); // No successful submissions
+            user4.setProblemsSolved(0); // Failed all attempts
+            userRepository.save(user4);
 
             // ============= SECOND ACTIVE CONTEST =============
             Contest oldContest = new Contest();
@@ -301,13 +320,219 @@ public class DataInitializer {
             tc9.setProblem(savedProblem3);
             testCaseRepository.save(tc9);
 
+            // ============= ENDED CONTEST =============
+            Contest endedContest = new Contest();
+            endedContest.setTitle("Past Challenge #1");
+            endedContest.setDescription("A previous contest that has now ended. You can view problems but cannot submit solutions.");
+            endedContest.setStartTime(LocalDateTime.now().minusDays(7));
+            endedContest.setEndTime(LocalDateTime.now().minusDays(2)); // Ended 2 days ago
+            endedContest.setIsActive(false);
+            Contest savedEndedContest = contestRepository.save(endedContest);
+
+            // Ended Contest - Problem 1: Count Vowels
+            Problem endedProblem1 = new Problem();
+            endedProblem1.setTitle("Count Vowels");
+            endedProblem1.setDescription("Given a string, count the number of vowels (a, e, i, o, u) in it.\n\n" +
+                    "The string may contain uppercase and lowercase letters. Count both uppercase and lowercase vowels.");
+            endedProblem1.setInputFormat("A single line containing the string");
+            endedProblem1.setOutputFormat("An integer representing the count of vowels");
+            endedProblem1.setConstraints("1 <= string.length <= 1000\nString contains only alphabetic characters");
+            endedProblem1.setPoints(75);
+            endedProblem1.setTimeLimit(1000);
+            endedProblem1.setMemoryLimit(128);
+            endedProblem1.setContest(savedEndedContest);
+            Problem savedEndedProblem1 = problemRepository.save(endedProblem1);
+
+            // Test cases for Count Vowels
+            TestCase etc1 = new TestCase();
+            etc1.setInput("Hello World");
+            etc1.setExpectedOutput("3");
+            etc1.setIsHidden(false);
+            etc1.setTimeLimit(1000);
+            etc1.setMemoryLimit(128);
+            etc1.setProblem(savedEndedProblem1);
+            testCaseRepository.save(etc1);
+
+            TestCase etc2 = new TestCase();
+            etc2.setInput("Programming");
+            etc2.setExpectedOutput("3");
+            etc2.setIsHidden(false);
+            etc2.setTimeLimit(1000);
+            etc2.setMemoryLimit(128);
+            etc2.setProblem(savedEndedProblem1);
+            testCaseRepository.save(etc2);
+
+            TestCase etc3 = new TestCase();
+            etc3.setInput("AEIOUaeiou");
+            etc3.setExpectedOutput("10");
+            etc3.setIsHidden(true);
+            etc3.setTimeLimit(1000);
+            etc3.setMemoryLimit(128);
+            etc3.setProblem(savedEndedProblem1);
+            testCaseRepository.save(etc3);
+
+            // Ended Contest - Problem 2: Sum of Digits
+            Problem endedProblem2 = new Problem();
+            endedProblem2.setTitle("Sum of Digits");
+            endedProblem2.setDescription("Given a positive integer, find the sum of its digits.\n\n" +
+                    "For example, if the input is 123, the output should be 6 (1 + 2 + 3).");
+            endedProblem2.setInputFormat("A single positive integer");
+            endedProblem2.setOutputFormat("The sum of the digits");
+            endedProblem2.setConstraints("1 <= n <= 10^9");
+            endedProblem2.setPoints(50);
+            endedProblem2.setTimeLimit(1000);
+            endedProblem2.setMemoryLimit(128);
+            endedProblem2.setContest(savedEndedContest);
+            Problem savedEndedProblem2 = problemRepository.save(endedProblem2);
+
+            // Test cases for Sum of Digits
+            TestCase etc4 = new TestCase();
+            etc4.setInput("123");
+            etc4.setExpectedOutput("6");
+            etc4.setIsHidden(false);
+            etc4.setTimeLimit(1000);
+            etc4.setMemoryLimit(128);
+            etc4.setProblem(savedEndedProblem2);
+            testCaseRepository.save(etc4);
+
+            TestCase etc5 = new TestCase();
+            etc5.setInput("9999");
+            etc5.setExpectedOutput("36");
+            etc5.setIsHidden(false);
+            etc5.setTimeLimit(1000);
+            etc5.setMemoryLimit(128);
+            etc5.setProblem(savedEndedProblem2);
+            testCaseRepository.save(etc5);
+
+            TestCase etc6 = new TestCase();
+            etc6.setInput("1000000");
+            etc6.setExpectedOutput("1");
+            etc6.setIsHidden(true);
+            etc6.setTimeLimit(1000);
+            etc6.setMemoryLimit(128);
+            etc6.setProblem(savedEndedProblem2);
+            testCaseRepository.save(etc6);
+
+            // ============= CREATE CONTEST PARTICIPANTS AND SUBMISSIONS FOR ENDED CONTEST =============
+            // Alice - rank 1 with 125 points (both problems solved)
+            ContestParticipant aliceParticipant = new ContestParticipant();
+            aliceParticipant.setUser(user1);
+            aliceParticipant.setContest(savedEndedContest);
+            aliceParticipant.setScore(125); // 75 + 50
+            aliceParticipant.setProblemsSolved(2);
+            contestParticipantRepository.save(aliceParticipant);
+
+            // Alice's submissions
+            Submission aliceSubmission1 = new Submission();
+            aliceSubmission1.setUser(user1);
+            aliceSubmission1.setProblem(savedEndedProblem1);
+            aliceSubmission1.setCode("# Count vowels solution\nvowels = 'aeiouAEIOU'\ncount = sum(1 for char in input() if char in vowels)\nprint(count)");
+            aliceSubmission1.setLanguage(ProgrammingLanguage.PYTHON3);
+            aliceSubmission1.setStatus(SubmissionStatus.ACCEPTED);
+            aliceSubmission1.setScore(75);
+            aliceSubmission1.setTestCasesPassed(3);
+            aliceSubmission1.setTotalTestCases(3);
+            aliceSubmission1.setExecutionTime(45L);
+            aliceSubmission1.setSubmittedAt(LocalDateTime.now().minusDays(3).minusHours(2));
+            submissionRepository.save(aliceSubmission1);
+
+            Submission aliceSubmission2 = new Submission();
+            aliceSubmission2.setUser(user1);
+            aliceSubmission2.setProblem(savedEndedProblem2);
+            aliceSubmission2.setCode("# Sum of digits\nn = int(input())\ndigit_sum = sum(int(digit) for digit in str(n))\nprint(digit_sum)");
+            aliceSubmission2.setLanguage(ProgrammingLanguage.PYTHON3);
+            aliceSubmission2.setStatus(SubmissionStatus.ACCEPTED);
+            aliceSubmission2.setScore(50);
+            aliceSubmission2.setTestCasesPassed(3);
+            aliceSubmission2.setTotalTestCases(3);
+            aliceSubmission2.setExecutionTime(32L);
+            aliceSubmission2.setSubmittedAt(LocalDateTime.now().minusDays(3));
+            submissionRepository.save(aliceSubmission2);
+
+            // Bob - rank 2 with 75 points (only first problem solved)
+            ContestParticipant bobParticipant = new ContestParticipant();
+            bobParticipant.setUser(user2);
+            bobParticipant.setContest(savedEndedContest);
+            bobParticipant.setScore(75); // Only solved Count Vowels
+            bobParticipant.setProblemsSolved(1);
+            contestParticipantRepository.save(bobParticipant);
+
+            // Bob's submission
+            Submission bobSubmission = new Submission();
+            bobSubmission.setUser(user2);
+            bobSubmission.setProblem(savedEndedProblem1);
+            bobSubmission.setCode("import java.util.Scanner;\npublic class Solution {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        String s = sc.nextLine();\n        int count = 0;\n        for(char c : s.toCharArray()) {\n            if(\"aeiouAEIOU\".indexOf(c) != -1) count++;\n        }\n        System.out.println(count);\n    }\n}");
+            bobSubmission.setLanguage(ProgrammingLanguage.JAVA);
+            bobSubmission.setStatus(SubmissionStatus.ACCEPTED);
+            bobSubmission.setScore(75);
+            bobSubmission.setTestCasesPassed(3);
+            bobSubmission.setTotalTestCases(3);
+            bobSubmission.setExecutionTime(124L);
+            bobSubmission.setSubmittedAt(LocalDateTime.now().minusDays(3).minusHours(1));
+            submissionRepository.save(bobSubmission);
+
+            // Charlie - rank 3 with 50 points (only second problem solved)
+            ContestParticipant charlieParticipant = new ContestParticipant();
+            charlieParticipant.setUser(user3);
+            charlieParticipant.setContest(savedEndedContest);
+            charlieParticipant.setScore(50); // Only solved Sum of Digits
+            charlieParticipant.setProblemsSolved(1);
+            contestParticipantRepository.save(charlieParticipant);
+
+            // Charlie's submission
+            Submission charlieSubmission = new Submission();
+            charlieSubmission.setUser(user3);
+            charlieSubmission.setProblem(savedEndedProblem2);
+            charlieSubmission.setCode("#include <iostream>\nusing namespace std;\nint main() {\n    long long n;\n    cin >> n;\n    int sum = 0;\n    while(n > 0) {\n        sum += n % 10;\n        n /= 10;\n    }\n    cout << sum << endl;\n    return 0;\n}");
+            charlieSubmission.setLanguage(ProgrammingLanguage.CPP);
+            charlieSubmission.setStatus(SubmissionStatus.ACCEPTED);
+            charlieSubmission.setScore(50);
+            charlieSubmission.setTestCasesPassed(3);
+            charlieSubmission.setTotalTestCases(3);
+            charlieSubmission.setExecutionTime(15L);
+            charlieSubmission.setSubmittedAt(LocalDateTime.now().minusDays(2).minusHours(5));
+            submissionRepository.save(charlieSubmission);
+
+            // Dylan - rank 4 with 0 points (attempted but failed)
+            ContestParticipant dylanParticipant = new ContestParticipant();
+            dylanParticipant.setUser(user4);
+            dylanParticipant.setContest(savedEndedContest);
+            dylanParticipant.setScore(0); // Failed attempts
+            dylanParticipant.setProblemsSolved(0);
+            contestParticipantRepository.save(dylanParticipant);
+
+            // Dylan's failed submission
+            Submission dylanSubmission = new Submission();
+            dylanSubmission.setUser(user4);
+            dylanSubmission.setProblem(savedEndedProblem1);
+            dylanSubmission.setCode("// Incorrect vowel counting\nconst input = prompt();\nlet count = 0;\nfor(let char of input) {\n    if('aeiou'.includes(char)) count++; // Missing uppercase vowels\n}\nconsole.log(count);");
+            dylanSubmission.setLanguage(ProgrammingLanguage.JAVASCRIPT);
+            dylanSubmission.setStatus(SubmissionStatus.WRONG_ANSWER);
+            dylanSubmission.setScore(0);
+            dylanSubmission.setTestCasesPassed(0);
+            dylanSubmission.setTotalTestCases(3);
+            dylanSubmission.setExecutionTime(28L);
+            dylanSubmission.setErrorMessage("All test cases failed: Missing uppercase vowel handling");
+            dylanSubmission.setSubmittedAt(LocalDateTime.now().minusDays(2));
+            submissionRepository.save(dylanSubmission);
+
             log.info("Sample data initialization completed!");
-            log.info("Created 2 contests:");
-            log.info("  - Old contest (ended): {} with 3 problems", savedOldContest.getTitle());
-            log.info("  - Active contest: {} with 3 problems", savedActiveContest.getTitle());
-            log.info("Created {} users", 3);
-            log.info("Created {} problems total", 6);
-            log.info("Created {} test cases total", 16);
+            log.info("Created 3 contests:");
+            log.info("  - Active contest 1: {} with 3 problems", savedOldContest.getTitle());
+            log.info("  - Active contest 2: {} with 3 problems", savedActiveContest.getTitle());
+            log.info("  - Ended contest: {} with 2 problems and 4 participants", savedEndedContest.getTitle());
+            log.info("Created {} users with global scores:", 4);
+            log.info("  - alice: 125 points, 2 problems solved");
+            log.info("  - bob: 75 points, 1 problem solved");
+            log.info("  - charlie: 50 points, 1 problem solved");
+            log.info("  - dylan: 0 points, 0 problems solved");
+            log.info("Created {} problems total", 8);
+            log.info("Created {} test cases total", 22);
+            log.info("Created leaderboard for ended contest:");
+            log.info("  1. Alice - 125 points (2 problems)");
+            log.info("  2. Bob - 75 points (1 problem)");
+            log.info("  3. Charlie - 50 points (1 problem)");
+            log.info("  4. Dylan - 0 points (0 problems)");
         };
     }
 }

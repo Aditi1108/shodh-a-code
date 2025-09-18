@@ -47,7 +47,7 @@ export default function Leaderboard({ contestId }: LeaderboardProps) {
       case 2:
         return <Medal className="h-5 w-5 text-gray-400" />;
       case 3:
-        return <Award className="h-5 w-5 text-orange-600" />;
+        return <Award className="h-5 w-5 text-yellow-800" />;
       default:
         return <span className="text-gray-600 dark:text-gray-400 font-medium">{rank}</span>;
     }
@@ -60,7 +60,7 @@ export default function Leaderboard({ contestId }: LeaderboardProps) {
       case 2:
         return 'bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-900/20 dark:to-gray-800/20 border-gray-300 dark:border-gray-700';
       case 3:
-        return 'bg-gradient-to-r from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 border-orange-300 dark:border-orange-700';
+        return 'bg-gradient-to-r from-yellow-50/50 to-yellow-100/50 dark:from-yellow-900/10 dark:to-yellow-800/10 border-yellow-700/30 dark:border-yellow-800/30';
       default:
         return 'bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700';
     }
@@ -84,10 +84,10 @@ export default function Leaderboard({ contestId }: LeaderboardProps) {
       <div className="space-y-2">
         <div className="grid grid-cols-12 gap-4 px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 border-b dark:border-gray-700">
           <div className="col-span-1">Rank</div>
-          <div className="col-span-5">Participant</div>
+          <div className="col-span-3">Participant</div>
           <div className="col-span-2 text-center">Problems</div>
           <div className="col-span-2 text-center">Score</div>
-          <div className="col-span-2 text-right">Last Submission</div>
+          <div className="col-span-4 text-right">Last Submission</div>
         </div>
 
         {entries.length === 0 ? (
@@ -103,7 +103,7 @@ export default function Leaderboard({ contestId }: LeaderboardProps) {
               <div className="col-span-1 flex items-center">
                 {getRankIcon(entry.rank)}
               </div>
-              <div className="col-span-5 flex items-center gap-2">
+              <div className="col-span-3 flex items-center gap-2">
                 <User className="h-4 w-4 text-gray-400" />
                 <div className="font-medium text-gray-900 dark:text-white">
                   {entry.username}
@@ -119,7 +119,7 @@ export default function Leaderboard({ contestId }: LeaderboardProps) {
                   {entry.score}
                 </span>
               </div>
-              <div className="col-span-2 text-right flex items-center justify-end text-sm text-gray-500 dark:text-gray-400">
+              <div className="col-span-4 text-right flex items-center justify-end text-sm text-gray-500 dark:text-gray-400">
                 {entry.lastSubmission || 'No submissions'}
               </div>
             </div>

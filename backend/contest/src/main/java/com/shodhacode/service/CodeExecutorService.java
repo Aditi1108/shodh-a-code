@@ -16,6 +16,7 @@ import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
 import java.util.concurrent.TimeUnit;
 import java.util.UUID;
 import java.util.List;
@@ -153,7 +154,12 @@ public class CodeExecutorService {
         Path workDir = Paths.get(tempDir, executionId);
         Files.createDirectories(workDir);
 
-        log.info("Executing submission {} with language: {}", submission.getId(), submission.getLanguage());
+        log.info("===== Starting Docker execution =====");
+        log.info("Submission ID: {}", submission.getId());
+        log.info("Problem: {} (ID: {})", problem.getTitle(), problem.getId());
+        log.info("Language: {}", submission.getLanguage());
+        log.info("Execution ID: {}", executionId);
+        log.info("Working directory: {}", workDir);
 
         try {
             String fileName = getFileName(submission.getLanguage());
@@ -261,7 +267,8 @@ public class CodeExecutorService {
                 boolean finished = process.waitFor(testCase.getTimeLimit() + 1000, TimeUnit.MILLISECONDS);
 
                 if (!finished) {
-                    log.warn("Test case {} timed out for submission {}", i + 1, submission.getId());
+                    log.warn("Test case {} timed out for submission {} (time limit: {}ms)",
+                            i + 1, submission.getId(), testCase.getTimeLimit());
                     process.destroyForcibly();
                     // Also kill the Docker container if it's still running
                     try {
@@ -308,8 +315,12 @@ public class CodeExecutorService {
                     testCasesPassed++;
                     totalScore += pointsPerTestCase;
                     output.append(testCaseLabel).append(i + 1).append(": ").append(ApplicationConstants.RESULT_PASSED).append("\n");
+                    log.debug("Test case {} PASSED for submission {}", i + 1, submission.getId());
                 } else {
                     output.append(testCaseLabel).append(i + 1).append(": ").append(ApplicationConstants.RESULT_FAILED).append("\n");
+                    log.debug("Test case {} FAILED for submission {}", i + 1, submission.getId());
+                    log.debug("  Expected: {}", expectedOutput.substring(0, Math.min(100, expectedOutput.length())));
+                    log.debug("  Got: {}", actualOutput.substring(0, Math.min(100, actualOutput.length())));
                     if (!testCase.getIsHidden()) {
                         output.append("  Expected: ").append(expectedOutput).append("\n");
                         output.append("  Got: ").append(actualOutput).append("\n");
@@ -353,9 +364,17 @@ public class CodeExecutorService {
             submission.setTestCasesPassed(testCasesPassed);
             submission.setTotalTestCases(totalTestCases);
             submission.setExecutionTime(totalExecutionTime);
-            
+
+            log.info("===== Execution completed =====");
+            log.info("Submission ID: {}", submission.getId());
+            log.info("Status: {}", submission.getStatus());
+            log.info("Test cases passed: {}/{}", testCasesPassed, totalTestCases);
+            log.info("Score: {}/{}", submission.getScore(), problem.getPoints());
+            log.info("Total execution time: {}ms", totalExecutionTime);
+
         } finally {
             cleanupWorkDir(workDir);
+            log.debug("Cleaned up working directory: {}", workDir);
         }
         
         submissionRepository.save(submission);
@@ -368,6 +387,7 @@ public class CodeExecutorService {
 
     private void updateUserGlobalScore(User user) {
         try {
+            log.debug("Updating global score for user {} (ID: {})", user.getUsername(), user.getId());
             // Get all contest participations for this user
             List<ContestParticipant> participations = contestParticipantRepository.findByUserId(user.getId());
 

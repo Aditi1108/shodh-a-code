@@ -98,6 +98,8 @@ export default function Contest({ user }: { user: any }) {
     try {
       const data = await contestApi.getById(contestId);
       setContest(data);
+      // Always load leaderboard to get participant count
+      loadLeaderboard(contestId);
     } catch (err: any) {
       console.error('Error loading contest:', err);
       setError('Failed to load contest');

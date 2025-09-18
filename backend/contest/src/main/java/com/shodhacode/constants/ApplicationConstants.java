@@ -4,7 +4,7 @@ public class ApplicationConstants {
     
     // Polling intervals in milliseconds
     public static final int SUBMISSION_POLLING_INTERVAL = 2500;  // 2.5 seconds
-    public static final int LEADERBOARD_POLLING_INTERVAL = 20000; // 20 seconds
+    public static final int LEADERBOARD_POLLING_INTERVAL = 15000; // 15 seconds
     
     // Execution limits
     public static final int DEFAULT_TIME_LIMIT = 2000; // 2 seconds in milliseconds
